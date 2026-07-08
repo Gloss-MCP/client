@@ -9,3 +9,7 @@ linters:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+        # Deferred cleanup; rows.Err() / the failing open carry the
+        # actionable error.
+        - (*database/sql.DB).Close
+        - (*database/sql.Rows).Close
