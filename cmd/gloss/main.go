@@ -4,11 +4,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/gloss-mcp/client/internal/store"
 )
 
 // version is set at build time via -ldflags "-X main.version=...".
@@ -70,8 +73,38 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
+	if err := initStore(abs); err != nil {
+		fmt.Fprintf(stderr, "gloss: %v\n", err)
+		return 1
+	}
+
 	// Server mode lands in milestone 4 (web server shell); until then the
-	// skeleton only validates its input.
+	// skeleton initialises the store and validates its input.
 	fmt.Fprintf(stderr, "gloss: server mode is not yet implemented (would serve %s)\n", abs)
 	return 1
+}
+
+// initStore creates <dir>/.gloss/gloss.db (and .gloss/ itself) and runs
+// migrations, so the review store exists before server mode lands.
+func initStore(dir string) error {
+	glossDir := filepath.Join(dir, ".gloss")
+	if err := os.MkdirAll(glossDir, 0o755); err != nil {
+		return err
+	}
+	st, err := store.Open(filepath.Join(glossDir, "gloss.db"))
+	if err != nil {
+		return err
+	}
+
+	// Milestone 3 (connectors) takes over git awareness; until then a
+	// .git directory is enough to record the connector type honestly.
+	connectorType := store.ConnectorLocal
+	if info, err := os.Stat(filepath.Join(dir, ".git")); err == nil && info.IsDir() {
+		connectorType = store.ConnectorGit
+	}
+	if _, err := st.EnsureRepository(context.Background(), filepath.Base(dir), connectorType, ""); err != nil {
+		_ = st.Close()
+		return err
+	}
+	return st.Close()
 }
