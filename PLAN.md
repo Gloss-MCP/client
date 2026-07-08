@@ -116,9 +116,10 @@ test), CLAUDE.md filled in, `.claude/` directory established.
 ### 2. Domain model & SQLite store
 
 Schema: sessions, threads, comments, polymorphic anchors,
-file_snapshots — the local subset only, no users/orgs. Embedded
-migrations. `internal/store` with full CRUD and integration tests
-against real SQLite.
+file_snapshots — the local subset only, no users/orgs — as specified
+in [docs/data-model.md](docs/data-model.md). Embedded migrations.
+`internal/store` with full CRUD and integration tests against real
+SQLite.
 
 *Exit: store passes integration tests; `gloss .` creates
 `.gloss/gloss.db`.*
@@ -150,7 +151,8 @@ replies, resolve/reopen, thread list + filters.
 ### 6. MCP server
 
 Streamable HTTP endpoint on the running server. Full tool surface
-(sessions / threads / comments / repos), with `author_type` /
+(sessions / threads / comments / repos) as specified in
+[docs/mcp-api.md](docs/mcp-api.md), with `author_type` /
 `author_agent` attribution. Integration tests driven by a real MCP
 client. **Dogfooding begins here.**
 
@@ -218,3 +220,8 @@ concern.
 - 2026-07-08: Plan committed to the repo. Milestone 1 started: license
   settled (MIT), CLAUDE.md checklist walked and filled; walking
   skeleton, Makefile, and CI baseline under way.
+- 2026-07-08: Design reference docs added — the data model
+  (local subset) and MCP tool surface now live in
+  [docs/data-model.md](docs/data-model.md) and
+  [docs/mcp-api.md](docs/mcp-api.md), so milestones 2 and 6 can be
+  implemented from this repo alone.
