@@ -1,0 +1,12 @@
+# Gloss local data
+.gloss/
+
+# Build artifacts
+/gloss
+dist/
+
+# Editor cruft
+.idea/
+.vscode/
+*.swp
+.DS_Store
