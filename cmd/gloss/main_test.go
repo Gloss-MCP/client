@@ -80,6 +80,33 @@ func TestRun(t *testing.T) {
 	}
 }
 
+// TestRunInitialisesStore covers the milestone-2 exit criterion:
+// `gloss .` creates .gloss/gloss.db in the target directory.
+func TestRunInitialisesStore(t *testing.T) {
+	dir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+	code := run([]string{dir}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1 (stderr: %q)", code, stderr.String())
+	}
+
+	dbPath := filepath.Join(dir, ".gloss", "gloss.db")
+	if _, err := os.Stat(dbPath); err != nil {
+		t.Fatalf(".gloss/gloss.db not created: %v", err)
+	}
+
+	// Running again against an existing store must succeed (idempotent
+	// open + ensure).
+	stderr.Reset()
+	if code := run([]string{dir}, &stdout, &stderr); code != 1 {
+		t.Fatalf("second run exit code = %d, want 1 (stderr: %q)", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "server mode is not yet implemented") {
+		t.Errorf("stderr = %q, want the server-mode placeholder", stderr.String())
+	}
+}
+
 func TestRunFileNotDirectory(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "plain.txt")
