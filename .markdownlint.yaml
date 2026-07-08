@@ -1,0 +1,7 @@
+# Markdown lint baseline. Defaults apply except where noted.
+
+# No hard line-length limit — tables and URLs make it noisy.
+MD013: false
+
+# House style is compact table pipes (|---|), which this rule rejects.
+MD060: false
