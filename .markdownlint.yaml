@@ -1,0 +1,4 @@
+# Markdown lint baseline. Defaults apply except where noted.
+
+# No hard line-length limit — tables and URLs make it noisy.
+MD013: false
