@@ -21,6 +21,7 @@ against.
 | `name` | Defaults to the directory name |
 | `connector_type` | `local` \| `git` (a local directory that is also a git repo) |
 | `connector_config` | JSON; connector-specific settings |
+| `created_at` | |
 
 ## Session
 
@@ -35,6 +36,7 @@ The top-level container for a review — e.g. "architecture review June
 | `description` | |
 | `status` | `open` \| `resolved` \| `archived` |
 | `created_by` | Author identity value (see Local adaptations) |
+| `created_at`, `updated_at` | |
 
 ## FileSnapshot
 
@@ -92,6 +94,7 @@ session only implicitly, through their thread.
 | `anchor` | Embedded Anchor (above) |
 | `anchor_status` | `active` \| `orphaned` \| `resolved` |
 | `created_by` | Author identity value |
+| `created_at`, `updated_at` | |
 
 ## Comment
 

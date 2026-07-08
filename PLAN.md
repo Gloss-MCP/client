@@ -105,7 +105,7 @@ Per PRINCIPLES.md (business repo) — no test suite, no merge.
 Eleven parts, each an independently mergeable slice with tests and CI
 green at exit.
 
-### 1. Bootstrap & agentic scaffolding — in progress
+### 1. Bootstrap & agentic scaffolding — complete
 
 Public repo, Go module, `cmd/gloss` walking skeleton (`--version`,
 mode-flag surface reserved), Makefile, CI baseline (lint + build +
@@ -113,7 +113,7 @@ test), CLAUDE.md filled in, `.claude/` directory established.
 
 *Exit: CI green on a hello-world binary.*
 
-### 2. Domain model & SQLite store
+### 2. Domain model & SQLite store — complete
 
 Schema: sessions, threads, comments, polymorphic anchors,
 file_snapshots — the local subset only, no users/orgs — as specified
@@ -225,3 +225,14 @@ concern.
   [docs/data-model.md](docs/data-model.md) and
   [docs/mcp-api.md](docs/mcp-api.md), so milestones 2 and 6 can be
   implemented from this repo alone.
+- 2026-07-08: Milestone 1 complete — walking skeleton, Makefile, and CI
+  baseline merged.
+- 2026-07-08: Milestone 2 complete — `internal/store` lands the SQLite
+  schema (embedded migrations, applied on open), text-UUID keys, the
+  polymorphic anchor as a Go sum type persisted as opaque JSON, full
+  CRUD sized for the milestone 5–6 surface (including the `list_threads`
+  filters, which match author on a thread's root comment), and
+  integration tests against real SQLite. `gloss .` now initialises
+  `.gloss/gloss.db`. Timestamps (`created_at`/`updated_at`) were added
+  to repository/session/thread in docs/data-model.md — the only schema
+  deviation, needed for UI ordering.
