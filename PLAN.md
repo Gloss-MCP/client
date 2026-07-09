@@ -250,4 +250,4 @@ concern.
   files on every startup, reporting indexed/new/reused/skipped counts.
   Integration tests run against a fixture corpus in
   `testdata/connector/fixture/` (copied per-test, with a real `git init`
-  + commit for git-connector cases).
+  and commit for git-connector cases).
