@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gloss-mcp/client/internal/connector"
 	"github.com/gloss-mcp/client/internal/store"
 )
 
@@ -73,38 +74,49 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	if err := initStore(abs); err != nil {
+	result, err := initStore(abs)
+	if err != nil {
 		fmt.Fprintf(stderr, "gloss: %v\n", err)
 		return 1
 	}
+	fmt.Fprintf(stderr, "gloss: indexed %d files (%d new, %d reused, %d skipped) in %s\n",
+		result.Files, result.Created, result.Reused, result.Skipped, abs)
 
 	// Server mode lands in milestone 4 (web server shell); until then the
-	// skeleton initialises the store and validates its input.
+	// skeleton initialises the store, snapshots tracked files, and
+	// validates its input.
 	fmt.Fprintf(stderr, "gloss: server mode is not yet implemented (would serve %s)\n", abs)
 	return 1
 }
 
-// initStore creates <dir>/.gloss/gloss.db (and .gloss/ itself) and runs
-// migrations, so the review store exists before server mode lands.
-func initStore(dir string) error {
+// initStore creates <dir>/.gloss/gloss.db (and .gloss/ itself), runs
+// migrations, and snapshots dir's tracked files via the connector
+// matching the repository's connector type.
+func initStore(dir string) (connector.Result, error) {
 	glossDir := filepath.Join(dir, ".gloss")
 	if err := os.MkdirAll(glossDir, 0o755); err != nil {
-		return err
+		return connector.Result{}, err
 	}
 	st, err := store.Open(filepath.Join(glossDir, "gloss.db"))
 	if err != nil {
-		return err
+		return connector.Result{}, err
 	}
 
-	// Milestone 3 (connectors) takes over git awareness; until then a
-	// .git directory is enough to record the connector type honestly.
-	connectorType := store.ConnectorLocal
-	if info, err := os.Stat(filepath.Join(dir, ".git")); err == nil && info.IsDir() {
-		connectorType = store.ConnectorGit
-	}
-	if _, err := st.EnsureRepository(context.Background(), filepath.Base(dir), connectorType, ""); err != nil {
+	ctx := context.Background()
+	repo, err := st.EnsureRepository(ctx, filepath.Base(dir), connector.Detect(dir), "")
+	if err != nil {
 		_ = st.Close()
-		return err
+		return connector.Result{}, err
 	}
-	return st.Close()
+
+	result, err := connector.New(dir, repo.ConnectorType).Snapshot(ctx, st, repo.ID)
+	if err != nil {
+		_ = st.Close()
+		return connector.Result{}, err
+	}
+
+	if err := st.Close(); err != nil {
+		return connector.Result{}, err
+	}
+	return result, nil
 }
