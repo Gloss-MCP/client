@@ -124,7 +124,7 @@ SQLite.
 *Exit: store passes integration tests; `gloss .` creates
 `.gloss/gloss.db`.*
 
-### 3. Connectors — local directory + git
+### 3. Connectors — local directory + git — complete
 
 Tree walking with ignore rules (`.gitignore` + `.glossignore`), content
 hashing, snapshot capture, git metadata (commit SHA as anchor fallback).
@@ -236,3 +236,18 @@ concern.
   `.gloss/gloss.db`. Timestamps (`created_at`/`updated_at`) were added
   to repository/session/thread in docs/data-model.md — the only schema
   deviation, needed for UI ordering.
+- 2026-07-09: Milestone 3 complete — `internal/connector` walks a
+  repository, hashes tracked files, and creates/reuses `FileSnapshot`
+  rows via the milestone-2 store. Local and git connectors share one
+  walk+hash+persist core and differ only in which ignore files apply
+  (`.glossignore` only vs `.gitignore` + `.glossignore`) and whether a
+  commit SHA is attached. Deliberate scope calls: a hand-rolled
+  gitignore-subset matcher instead of a dependency (comments, negation,
+  dir-only, root anchoring, `*`/`**`/`?`; no character classes, no
+  nested per-directory ignore files — root-level only); git metadata
+  via shelling out to `git rev-parse HEAD` rather than a git-in-Go
+  library, keeping the build CGO-free. `gloss .` now snapshots tracked
+  files on every startup, reporting indexed/new/reused/skipped counts.
+  Integration tests run against a fixture corpus in
+  `testdata/connector/fixture/` (copied per-test, with a real `git init`
+  + commit for git-connector cases).
