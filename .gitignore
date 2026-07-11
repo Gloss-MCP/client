@@ -4,6 +4,12 @@
 # Build artifacts
 /gloss
 dist/
+/.tailwindcli/
+
+# e2e (Node/Playwright, e2e/ only -- not part of the shipped binary)
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
 
 # Editor cruft
 .idea/
