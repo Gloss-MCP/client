@@ -1,0 +1,16 @@
+{{define "treeChildren"}}
+<ul class="pl-2">
+{{range .Children}}
+  {{if .IsDir}}
+  <li x-data="{open: true}">
+    <button type="button" class="font-medium" @click="open = !open">{{.Name}}/</button>
+    <div x-show="open">{{template "treeChildren" .}}</div>
+  </li>
+  {{else}}
+  <li>
+    <a href="/files/{{.Path}}" hx-get="/files/{{.Path}}" hx-target="#file-content" hx-push-url="true" class="block hover:underline">{{.Name}}</a>
+  </li>
+  {{end}}
+{{end}}
+</ul>
+{{end}}
