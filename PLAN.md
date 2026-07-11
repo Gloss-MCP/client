@@ -251,3 +251,28 @@ concern.
   Integration tests run against a fixture corpus in
   `testdata/connector/fixture/` (copied per-test, with a real `git init`
   and commit for git-connector cases).
+- 2026-07-11: Milestone 4 complete — `gloss .` boots a real HTTP server
+  (`internal/server`): fixed default port `4747` (override with `-port`,
+  `-port 0` for an OS-assigned port), best-effort cross-platform browser
+  open (`-no-open` to skip), graceful shutdown on Ctrl+C via
+  `context.Context`. Routing is stdlib `net/http.ServeMux` only. The
+  file-browser UI is server-rendered `html/template` + HTMX + Alpine.js
+  (vendored from npm tarballs into `internal/server/static/vendor/` —
+  `unpkg`/`jsdelivr`/raw GitHub weren't reachable, the npm registry was);
+  the tree and file-content requests share one path-safety check: a file
+  is only ever read from disk if `connector.ListFiles` (new, exported —
+  reuses the milestone-3 ignore-matching walk) lists it, which is both
+  the ignore-rule boundary and the traversal defense. `internal/plugins`
+  introduces the plugin interface — `Render(File) ([]View, error)`,
+  where `View{Name, HTML}` is a slice rather than a single string so
+  milestone 8's markdown "rendered + source" tabs don't force a breaking
+  change — with `plaintext` as the catch-all (HTML-escaped, with binary-
+  content detection). Tailwind compiles via the standalone CLI
+  (`make assets`, new Makefile target, prerequisite of `build`/`test`/
+  `lint`); the compiled `app.css` is committed as a fallback so
+  `go build`/`go test` never require network access — `make assets`
+  overwrites it when the CLI can be downloaded, and degrades to a no-op
+  otherwise (GitHub Releases wasn't reachable from this session's sandbox
+  network; CI and real dev machines are unaffected). `make e2e` now runs
+  Playwright (`@playwright/test`, scoped to `e2e/`'s own `package.json`)
+  against the milestone-3 fixture corpus, joining CI as a new `e2e` job.

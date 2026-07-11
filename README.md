@@ -10,8 +10,10 @@ account, no internet connection required.
 
 ## Status
 
-Pre-release — milestone 1 (bootstrap) of 11. See [PLAN.md](PLAN.md) for
-the delivery breakdown. Nothing here is usable yet.
+Pre-release — milestone 4 (web server shell) of 11. See
+[PLAN.md](PLAN.md) for the delivery breakdown. `gloss .` now boots a
+read-only file-browser at `http://localhost:4747`; annotation and MCP
+are not implemented yet.
 
 ## Building from source
 
@@ -19,7 +21,7 @@ Requires Go 1.24+.
 
 ```sh
 make build
-./gloss --version
+./gloss .
 ```
 
 ## License
