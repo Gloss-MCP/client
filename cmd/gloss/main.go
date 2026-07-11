@@ -5,24 +5,36 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/gloss-mcp/client/internal/connector"
+	"github.com/gloss-mcp/client/internal/plugins"
+	"github.com/gloss-mcp/client/internal/server"
 	"github.com/gloss-mcp/client/internal/store"
 )
 
 // version is set at build time via -ldflags "-X main.version=...".
 var version = "dev"
 
+// defaultPort is gloss's fixed default port, chosen for a stable,
+// bookmarkable URL across runs. Override with -port (0 for an
+// OS-assigned port).
+const defaultPort = 4747
+
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	os.Exit(run(ctx, os.Args[1:], os.Stdout, os.Stderr))
 }
 
-func run(args []string, stdout, stderr io.Writer) int {
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("gloss", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.Usage = func() {
@@ -33,6 +45,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	showVersion := fs.Bool("version", false, "print version and exit")
 	cloud := fs.Bool("cloud", false, "run as a proxy agent for Gloss Cloud (not yet available)")
 	token := fs.String("token", "", "Gloss Cloud API token (not yet available)")
+	port := fs.Int("port", defaultPort, "port to serve on (0 for an OS-assigned port)")
+	noOpen := fs.Bool("no-open", false, "do not open a browser tab automatically")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -74,49 +88,72 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	result, err := initStore(abs)
+	st, repo, result, err := openStoreAndSnapshot(abs)
 	if err != nil {
 		fmt.Fprintf(stderr, "gloss: %v\n", err)
 		return 1
 	}
+	defer func() { _ = st.Close() }()
+
 	fmt.Fprintf(stderr, "gloss: indexed %d files (%d new, %d reused, %d skipped) in %s\n",
 		result.Files, result.Created, result.Reused, result.Skipped, abs)
 
-	// Server mode lands in milestone 4 (web server shell); until then the
-	// skeleton initialises the store, snapshots tracked files, and
-	// validates its input.
-	fmt.Fprintf(stderr, "gloss: server mode is not yet implemented (would serve %s)\n", abs)
-	return 1
+	srv := server.New(server.Config{
+		Root:          abs,
+		RepoName:      repo.Name,
+		ConnectorType: repo.ConnectorType,
+		Port:          *port,
+		Registry:      plugins.NewRegistry(plugins.NewPlaintext()),
+	})
+
+	onReady := func(addr string) {
+		url := "http://" + addr
+		fmt.Fprintf(stderr, "gloss: serving %s at %s\n", abs, url)
+		if !*noOpen {
+			if err := server.OpenBrowser(url); err != nil {
+				fmt.Fprintf(stderr, "gloss: could not open browser: %v\n", err)
+			}
+		}
+	}
+
+	if err := srv.ListenAndServe(ctx, onReady); err != nil {
+		if errors.Is(err, syscall.EADDRINUSE) {
+			fmt.Fprintf(stderr, "gloss: port %d is already in use; pick another with -port\n", *port)
+		} else {
+			fmt.Fprintf(stderr, "gloss: %v\n", err)
+		}
+		return 1
+	}
+	return 0
 }
 
-// initStore creates <dir>/.gloss/gloss.db (and .gloss/ itself), runs
-// migrations, and snapshots dir's tracked files via the connector
-// matching the repository's connector type.
-func initStore(dir string) (connector.Result, error) {
+// openStoreAndSnapshot creates <dir>/.gloss/gloss.db (and .gloss/ itself),
+// runs migrations, and snapshots dir's tracked files via the connector
+// matching the repository's connector type. Unlike a one-shot init, the
+// returned *store.Store is left open -- the server holds it for its
+// lifetime; callers close it once the server has stopped.
+func openStoreAndSnapshot(dir string) (*store.Store, *store.Repository, connector.Result, error) {
 	glossDir := filepath.Join(dir, ".gloss")
 	if err := os.MkdirAll(glossDir, 0o755); err != nil {
-		return connector.Result{}, err
+		return nil, nil, connector.Result{}, err
 	}
 	st, err := store.Open(filepath.Join(glossDir, "gloss.db"))
 	if err != nil {
-		return connector.Result{}, err
+		return nil, nil, connector.Result{}, err
 	}
 
 	ctx := context.Background()
 	repo, err := st.EnsureRepository(ctx, filepath.Base(dir), connector.Detect(dir), "")
 	if err != nil {
 		_ = st.Close()
-		return connector.Result{}, err
+		return nil, nil, connector.Result{}, err
 	}
 
 	result, err := connector.New(dir, repo.ConnectorType).Snapshot(ctx, st, repo.ID)
 	if err != nil {
 		_ = st.Close()
-		return connector.Result{}, err
+		return nil, nil, connector.Result{}, err
 	}
 
-	if err := st.Close(); err != nil {
-		return connector.Result{}, err
-	}
-	return result, nil
+	return st, repo, result, nil
 }

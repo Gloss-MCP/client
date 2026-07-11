@@ -3,11 +3,15 @@ package main
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/gloss-mcp/client/internal/store"
 )
@@ -41,12 +45,6 @@ func TestRun(t *testing.T) {
 			wantStderr: "proxy mode (--cloud) is not yet available",
 		},
 		{
-			name:       "server mode placeholder",
-			args:       []string{dir},
-			wantCode:   1,
-			wantStderr: "server mode is not yet implemented",
-		},
-		{
 			name:       "nonexistent directory",
 			args:       []string{"/nonexistent/gloss/path"},
 			wantCode:   1,
@@ -69,7 +67,7 @@ func TestRun(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
-			code := run(tt.args, &stdout, &stderr)
+			code := run(context.Background(), tt.args, &stdout, &stderr)
 
 			if code != tt.wantCode {
 				t.Errorf("exit code = %d, want %d (stderr: %q)", code, tt.wantCode, stderr.String())
@@ -84,16 +82,100 @@ func TestRun(t *testing.T) {
 	}
 }
 
-// TestRunInitialisesStore covers the milestone-2 exit criterion:
-// `gloss .` creates .gloss/gloss.db in the target directory.
-func TestRunInitialisesStore(t *testing.T) {
+func TestRunFileNotDirectory(t *testing.T) {
 	dir := t.TempDir()
+	file := filepath.Join(dir, "plain.txt")
+	if err := os.WriteFile(file, []byte("not a directory\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{dir}, &stdout, &stderr)
+	code := run(context.Background(), []string{file}, &stdout, &stderr)
+
 	if code != 1 {
-		t.Fatalf("exit code = %d, want 1 (stderr: %q)", code, stderr.String())
+		t.Errorf("exit code = %d, want 1", code)
 	}
+	if !strings.Contains(stderr.String(), "is not a directory") {
+		t.Errorf("stderr = %q, want it to contain %q", stderr.String(), "is not a directory")
+	}
+}
+
+// syncBuffer is a concurrency-safe io.Writer, needed because these tests
+// read stderr from a separate goroutine while run's server is live.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+var servingURLRe = regexp.MustCompile(`serving .* at (http://\S+)`)
+
+// runningServer runs `gloss -port 0 -no-open dir` in the background (an
+// OS-assigned port, isolating parallel tests) until the returned stop
+// func is called, which cancels its context and waits for run to return
+// -- guaranteeing the store is closed before the caller inspects the DB
+// file directly.
+func runningServer(t *testing.T, dir string) (baseURL string, stop func()) {
+	t.Helper()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	stderr := &syncBuffer{}
+	var stdout bytes.Buffer
+	doneCh := make(chan int, 1)
+
+	go func() {
+		doneCh <- run(ctx, []string{"-port", "0", "-no-open", dir}, &stdout, stderr)
+	}()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if m := servingURLRe.FindStringSubmatch(stderr.String()); m != nil {
+			return m[1], func() {
+				cancel()
+				select {
+				case code := <-doneCh:
+					if code != 0 {
+						t.Errorf("run exit code = %d, want 0 after graceful shutdown (stderr: %q)", code, stderr.String())
+					}
+				case <-time.After(5 * time.Second):
+					t.Fatal("run did not return after context cancellation")
+				}
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	cancel()
+	t.Fatalf("server never became ready; stderr: %q", stderr.String())
+	return "", nil
+}
+
+// TestRunServesAndInitialisesStore covers this milestone's exit
+// criterion end to end: `gloss .` creates .gloss/gloss.db and serves a
+// browsable UI over HTTP.
+func TestRunServesAndInitialisesStore(t *testing.T) {
+	dir := t.TempDir()
+
+	url, stop := runningServer(t, dir)
+	resp, err := http.Get(url + "/")
+	if err != nil {
+		t.Fatalf("GET %s/: %v", url, err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", resp.StatusCode)
+	}
+	stop()
 
 	dbPath := filepath.Join(dir, ".gloss", "gloss.db")
 	if _, err := os.Stat(dbPath); err != nil {
@@ -102,13 +184,8 @@ func TestRunInitialisesStore(t *testing.T) {
 
 	// Running again against an existing store must succeed (idempotent
 	// open + ensure).
-	stderr.Reset()
-	if code := run([]string{dir}, &stdout, &stderr); code != 1 {
-		t.Fatalf("second run exit code = %d, want 1 (stderr: %q)", code, stderr.String())
-	}
-	if !strings.Contains(stderr.String(), "server mode is not yet implemented") {
-		t.Errorf("stderr = %q, want the server-mode placeholder", stderr.String())
-	}
+	_, stop2 := runningServer(t, dir)
+	stop2()
 }
 
 // TestRunSnapshotsFiles covers the milestone-3 exit criterion for the
@@ -126,13 +203,8 @@ func TestRunSnapshotsFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var stdout, stderr bytes.Buffer
-	if code := run([]string{dir}, &stdout, &stderr); code != 1 {
-		t.Fatalf("exit code = %d, want 1 (stderr: %q)", code, stderr.String())
-	}
-	if !strings.Contains(stderr.String(), "indexed 2 files") {
-		t.Errorf("stderr = %q, want it to report 2 indexed files", stderr.String())
-	}
+	_, stop := runningServer(t, dir)
+	stop()
 
 	st, err := store.Open(filepath.Join(dir, ".gloss", "gloss.db"))
 	if err != nil {
@@ -188,10 +260,8 @@ func TestRunSnapshotsGitRepo(t *testing.T) {
 	runGitCmd(t, dir, "add", "-A")
 	runGitCmd(t, dir, "commit", "-q", "-m", "initial")
 
-	var stdout, stderr bytes.Buffer
-	if code := run([]string{dir}, &stdout, &stderr); code != 1 {
-		t.Fatalf("exit code = %d, want 1 (stderr: %q)", code, stderr.String())
-	}
+	_, stop := runningServer(t, dir)
+	stop()
 
 	st, err := store.Open(filepath.Join(dir, ".gloss", "gloss.db"))
 	if err != nil {
@@ -223,6 +293,24 @@ func TestRunSnapshotsGitRepo(t *testing.T) {
 	}
 }
 
+// TestRunPortInUse covers the -port flag's error path: a fixed port
+// that's already taken fails clearly instead of silently picking another.
+func TestRunPortInUse(t *testing.T) {
+	url, stop := runningServer(t, t.TempDir())
+	defer stop()
+
+	port := strings.TrimPrefix(url, "http://127.0.0.1:")
+
+	var stdout, stderr bytes.Buffer
+	code := run(context.Background(), []string{"-port", port, "-no-open", t.TempDir()}, &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("exit code = %d, want 1 (stderr: %q)", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "already in use") {
+		t.Errorf("stderr = %q, want it to mention the port is already in use", stderr.String())
+	}
+}
+
 func containsString(haystack []string, needle string) bool {
 	for _, s := range haystack {
 		if s == needle {
@@ -241,22 +329,4 @@ func runGitCmd(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 	return string(out)
-}
-
-func TestRunFileNotDirectory(t *testing.T) {
-	dir := t.TempDir()
-	file := filepath.Join(dir, "plain.txt")
-	if err := os.WriteFile(file, []byte("not a directory\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	var stdout, stderr bytes.Buffer
-	code := run([]string{file}, &stdout, &stderr)
-
-	if code != 1 {
-		t.Errorf("exit code = %d, want 1", code)
-	}
-	if !strings.Contains(stderr.String(), "is not a directory") {
-		t.Errorf("stderr = %q, want it to contain %q", stderr.String(), "is not a directory")
-	}
 }
