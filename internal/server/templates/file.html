@@ -1,0 +1,17 @@
+{{define "fileContent"}}
+{{if .}}
+<h2 class="font-mono text-xs text-gray-500 mb-2">{{.Path}}</h2>
+{{if gt (len .Views) 1}}
+<div x-data="{tab: 0}">
+  <div class="flex gap-2 mb-2 border-b border-gray-200">
+    {{range $i, $v := .Views}}<button type="button" class="px-2 py-1" @click="tab = {{$i}}" :class="tab === {{$i}} ? 'font-semibold border-b-2 border-blue-500' : 'text-gray-500'">{{$v.Name}}</button>{{end}}
+  </div>
+  {{range $i, $v := .Views}}<div x-show="tab === {{$i}}">{{$v.HTML}}</div>{{end}}
+</div>
+{{else}}
+{{range .Views}}{{.HTML}}{{end}}
+{{end}}
+{{else}}
+<p class="text-gray-400 text-sm">Select a file to view its contents.</p>
+{{end}}
+{{end}}
