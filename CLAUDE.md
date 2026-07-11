@@ -50,11 +50,25 @@ Project-specific overrides and additions:
 - **CGO-free is load-bearing.** The pure-Go SQLite driver
   (`modernc.org/sqlite`) is what keeps GoReleaser cross-platform builds
   trivial. Never add a dependency that requires CGO.
-- **No CDN, ever.** HTMX, Alpine.js, and all other frontend assets are
-  vendored into the repo. Tailwind compiles via the standalone CLI in the
-  build step — the toolchain is Go plus one binary, no Node.
+- **No CDN, ever.** HTMX and Alpine.js are committed as real files under
+  `internal/server/static/vendor/` (fetched once from their npm registry
+  tarballs — `unpkg`/`jsdelivr`/raw GitHub weren't reachable from this
+  environment's network, `registry.npmjs.org` was; see
+  `internal/server/static/vendor/VENDORED.md` for exact versions/update
+  steps). Tailwind compiles via the standalone CLI (`make assets`,
+  downloaded from GitHub Releases into `.tailwindcli/`, gitignored) from
+  `internal/server/static/css/input.css` into `app.css`, which **is**
+  committed — a fallback so `go build`/`go test` never require network
+  access; `make assets` (a prerequisite of `build`/`test`/`lint`)
+  overwrites it with a real compile whenever the CLI can be downloaded,
+  and silently no-ops otherwise. The toolchain for the shipped `gloss`
+  binary itself is still Go plus one binary, no Node.
+- **Playwright e2e is the one sanctioned Node dependency, scoped to
+  `e2e/`.** Its own `package.json`/`package-lock.json`, not part of the
+  shipped binary's build. `make e2e` runs `npm ci` + `npx playwright
+  test` there.
 - **The Makefile is the single entry point.** `make dev / test / lint /
-  e2e / build`. CI and agents use only these targets.
+  e2e / build / assets`. CI and agents use only these targets.
 - **CLAUDE.md stays current.** When a milestone changes how the repo works,
   update CLAUDE.md in the same PR — context drift is a bug.
 - **Testing per PRINCIPLES.md (business repo): no test suite, no merge.**
