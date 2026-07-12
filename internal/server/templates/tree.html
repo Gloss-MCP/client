@@ -1,14 +1,15 @@
 {{define "treeChildren"}}
+{{$prefix := .LinkPrefix}}{{$target := .HXTarget}}
 <ul class="pl-2">
-{{range .Children}}
+{{range .Node.Children}}
   {{if .IsDir}}
   <li x-data="{open: true}">
     <button type="button" class="font-medium" @click="open = !open">{{.Name}}/</button>
-    <div x-show="open">{{template "treeChildren" .}}</div>
+    <div x-show="open">{{template "treeChildren" (treeCtx . $prefix $target)}}</div>
   </li>
   {{else}}
   <li>
-    <a href="/files/{{.Path}}" hx-get="/files/{{.Path}}" hx-target="#file-content" hx-push-url="true" class="block hover:underline">{{.Name}}</a>
+    <a href="{{$prefix}}/files/{{.Path}}" hx-get="{{$prefix}}/files/{{.Path}}" hx-target="{{$target}}" hx-push-url="true" class="block hover:underline">{{.Name}}</a>
   </li>
   {{end}}
 {{end}}

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,9 +10,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gloss-mcp/client/internal/connector"
 	"github.com/gloss-mcp/client/internal/plugins"
 	"github.com/gloss-mcp/client/internal/store"
 )
+
+// testAuthor is the fixture human identity attributed to threads and
+// comments created through these tests.
+const testAuthor = "fixture-user"
 
 func testServer(t *testing.T) (*Server, string) {
 	t.Helper()
@@ -30,11 +36,29 @@ func testServer(t *testing.T) (*Server, string) {
 	write("secret.local", "shh")
 	write(".glossignore", "*.local\n")
 
+	st, err := store.Open(filepath.Join(t.TempDir(), "gloss.db"))
+	if err != nil {
+		t.Fatalf("store.Open: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+
+	ctx := context.Background()
+	repo, err := st.CreateRepository(ctx, "fixture", store.ConnectorLocal, "")
+	if err != nil {
+		t.Fatalf("CreateRepository: %v", err)
+	}
+	if _, err := connector.New(root, store.ConnectorLocal).Snapshot(ctx, st, repo.ID); err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+
 	srv := New(Config{
 		Root:          root,
-		RepoName:      "fixture",
+		RepoName:      repo.Name,
+		RepoID:        repo.ID,
 		ConnectorType: store.ConnectorLocal,
 		Registry:      plugins.NewRegistry(plugins.NewPlaintext()),
+		Store:         st,
+		Author:        testAuthor,
 	})
 	return srv, root
 }
