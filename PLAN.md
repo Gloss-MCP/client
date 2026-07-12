@@ -140,7 +140,7 @@ implementation. Playwright harness starts here and runs in CI.
 
 *Exit: browse and read any file in a directory via localhost.*
 
-### 5. Annotation core
+### 5. Annotation core — complete
 
 The heart of the product. Session CRUD + switcher, thread creation from
 line selection (Alpine selection/highlight), comment composer, nested
@@ -276,3 +276,30 @@ concern.
   network; CI and real dev machines are unaffected). `make e2e` now runs
   Playwright (`@playwright/test`, scoped to `e2e/`'s own `package.json`)
   against the milestone-3 fixture corpus, joining CI as a new `e2e` job.
+- 2026-07-12: Milestone 5 complete — session CRUD, thread creation from a
+  line-range selection, nested comment replies, resolve/reopen, and a
+  thread list with an `anchor_status` filter, all server-rendered.
+  `internal/plugins`'s plaintext render changed from one escaped
+  `<pre><code>` blob to one `<div data-line="N">` per line — a
+  documented convention any line-anchoring plugin follows (the `Plugin`
+  interface itself is unchanged), so the UI can select/highlight ranges
+  generically without knowing which plugin rendered a file. Routing adds
+  a session-scoped tree (`/s/{sessionID}`, `/s/{sessionID}/files/{path...}`)
+  alongside milestone 4's plain `/`/`/files/{path...}` routes, which stay
+  exactly as they were — no session, no thread UI — so existing behavior
+  and tests are untouched; a session switcher in the nav (visible on both)
+  is how you get from one to the other. Every mutation (create/rename/
+  delete session, create thread, add/reply comment, resolve/reopen)
+  follows validate-then-redirect-back — `HX-Redirect` for HTMX requests,
+  a real 303 otherwise — rather than partial swaps, so each `GET` handler
+  stays the single rendering source of truth and the forms degrade to
+  plain HTML POSTs. Line selection and gutter highlighting of annotated
+  lines are driven by a small hand-written Alpine helper
+  (`internal/server/static/js/gloss.js`, same status as `app.css`: not
+  vendored, same-origin, no build step) operating generically on
+  `[data-line]` elements via one delegated click handler. Author identity
+  for human writes comes from a new `-author` flag on `gloss`, defaulting
+  to the local OS username (`os/user`); local mode still has no accounts,
+  so this is a plain configured value, not a foreign key. Delta-tracking
+  fields on `LineAnchor` (`context_before`/`context_after`) are left
+  empty at creation time — milestone 7 owns context-line capture.

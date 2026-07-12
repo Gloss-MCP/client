@@ -62,7 +62,11 @@ Project-specific overrides and additions:
   access; `make assets` (a prerequisite of `build`/`test`/`lint`)
   overwrites it with a real compile whenever the CLI can be downloaded,
   and silently no-ops otherwise. The toolchain for the shipped `gloss`
-  binary itself is still Go plus one binary, no Node.
+  binary itself is still Go plus one binary, no Node. Hand-written app
+  JavaScript (Alpine component helpers too stateful for inline
+  `x-data`) lives at `internal/server/static/js/` — same status as
+  `app.css`: same-origin, no build step, not vendored because it isn't
+  a third-party library.
 - **Playwright e2e is the one sanctioned Node dependency, scoped to
   `e2e/`.** Its own `package.json`/`package-lock.json`, not part of the
   shipped binary's build. `make e2e` runs `npm ci` + `npx playwright
