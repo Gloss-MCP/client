@@ -18,7 +18,9 @@ _go_ok := $(shell \
   then echo yes; else echo no; fi)
 
 _DOCKER_RUN := docker run --rm \
-  -v "$(CURDIR):/src" -v "$(HOME)/go/pkg/mod:/go/pkg/mod" \
+  -v "$(CURDIR):/src" \
+  -v "$(HOME)/go/pkg/mod:/go/pkg/mod" \
+  -v "$(HOME)/.cache/go-build:/root/.cache/go-build" \
   -w /src $(GO_IMAGE)
 
 ifeq ($(_go_ok),yes)
