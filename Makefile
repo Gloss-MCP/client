@@ -29,7 +29,7 @@ GO    := $(_DOCKER_RUN) go
 GOFMT := $(_DOCKER_RUN) gofmt
 endif
 
-.PHONY: build test lint e2e dev clean assets
+.PHONY: build test lint e2e run clean assets
 
 # assets compiles the vendored HTMX/Alpine.js + Tailwind CSS pipeline.
 # The Tailwind standalone CLI is downloaded on first use and cached in
@@ -86,7 +86,7 @@ lint: assets
 e2e: build
 	cd e2e && npm ci && npx playwright test
 
-dev: build
+run: build
 	./$(BINARY) .
 
 clean:

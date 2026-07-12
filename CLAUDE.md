@@ -71,7 +71,7 @@ Project-specific overrides and additions:
   `e2e/`.** Its own `package.json`/`package-lock.json`, not part of the
   shipped binary's build. `make e2e` runs `npm ci` + `npx playwright
   test` there.
-- **The Makefile is the single entry point.** `make dev / test / lint /
+- **The Makefile is the single entry point.** `make run / test / lint /
   e2e / build / assets`. CI and agents use only these targets.
 - **CLAUDE.md stays current.** When a milestone changes how the repo works,
   update CLAUDE.md in the same PR — context drift is a bug.
