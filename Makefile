@@ -7,6 +7,28 @@ TAILWIND_BIN      := .tailwindcli/tailwindcss
 TAILWIND_CSS_IN   := internal/server/static/css/input.css
 TAILWIND_CSS_OUT  := internal/server/static/css/app.css
 
+GO_IMAGE := golang:1.25-alpine
+
+# Fall back to Docker when local go is absent or pre-1.25
+_go_ok := $(shell \
+  v=$$(go version 2>/dev/null | grep -oE 'go[0-9]+\.[0-9]+' | sed 's/go//'); \
+  if [ -z "$$v" ]; then echo no; exit 0; fi; \
+  maj=$$(echo $$v | cut -d. -f1); min=$$(echo $$v | cut -d. -f2); \
+  if [ "$$maj" -gt 1 ] || { [ "$$maj" -eq 1 ] && [ "$$min" -ge 25 ]; }; \
+  then echo yes; else echo no; fi)
+
+_DOCKER_RUN := docker run --rm \
+  -v "$(CURDIR):/src" -v "$(HOME)/go/pkg/mod:/go/pkg/mod" \
+  -w /src $(GO_IMAGE)
+
+ifeq ($(_go_ok),yes)
+GO    := go
+GOFMT := gofmt
+else
+GO    := $(_DOCKER_RUN) go
+GOFMT := $(_DOCKER_RUN) gofmt
+endif
+
 .PHONY: build test lint e2e dev clean assets
 
 # assets compiles the vendored HTMX/Alpine.js + Tailwind CSS pipeline.
@@ -49,14 +71,14 @@ assets:
 	fi
 
 build: assets
-	go build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/gloss
+	$(GO) build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/gloss
 
 test: assets
-	go test ./...
+	$(GO) test ./...
 
 lint: assets
 	golangci-lint run
-	@unformatted=$$(gofmt -l .); \
+	@unformatted=$$($(GOFMT) -l .); \
 	if [ -n "$$unformatted" ]; then \
 		echo "gofmt: files need formatting:"; echo "$$unformatted"; exit 1; \
 	fi
