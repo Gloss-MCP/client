@@ -67,6 +67,14 @@ Project-specific overrides and additions:
   `x-data`) lives at `internal/server/static/js/` — same status as
   `app.css`: same-origin, no build step, not vendored because it isn't
   a third-party library.
+- **MCP server runs at `/mcp` on the same port as the web UI (default
+  4747).** Transport is streamable HTTP via
+  `github.com/modelcontextprotocol/go-sdk` v1.6.1. The 13-tool surface
+  (sessions, threads, comments, repos) lives in `internal/mcp/`. All MCP
+  writes attribute `author_type=ai`; `author_agent` defaults to
+  `clientInfo.name` from the MCP initialize handshake. `.mcp.json` at the
+  repo root registers `http://localhost:4747/mcp` so Claude Code in this
+  repo can read and reply through the UI live (dogfooding from milestone 6).
 - **Playwright e2e is the one sanctioned Node dependency, scoped to
   `e2e/`.** Its own `package.json`/`package-lock.json`, not part of the
   shipped binary's build. `make e2e` runs `npm ci` + `npx playwright

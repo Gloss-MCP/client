@@ -276,6 +276,22 @@ concern.
   network; CI and real dev machines are unaffected). `make e2e` now runs
   Playwright (`@playwright/test`, scoped to `e2e/`'s own `package.json`)
   against the milestone-3 fixture corpus, joining CI as a new `e2e` job.
+- 2026-07-12: Milestone 6 complete — streamable HTTP MCP server on
+  `POST /mcp` (and `GET /mcp`) via `github.com/modelcontextprotocol/go-sdk`
+  v1.6.1. Full 13-tool surface: `create_session`, `list_sessions`,
+  `get_session`, `create_thread`, `get_thread`, `list_threads`,
+  `resolve_thread`, `reopen_thread`, `add_comment`, `edit_comment`,
+  `delete_comment`, `list_repos`, `get_repo`. Attribution: `author_type=ai`
+  on all MCP writes; `author_agent` defaults to `clientInfo.name` from the
+  MCP initialize handshake, overridable per-call. `create_thread` validates
+  `file_path` against the connector's tracked-file set and resolves/creates
+  a `FileSnapshot` using the same hash logic as the UI handler — no dangling
+  anchors. Store model structs gained `json:` tags (snake_case) — an additive
+  change with no schema impact. Integration tests in `internal/mcp/` use a
+  real SQLite store + a live `httptest.Server` + the official Go SDK client,
+  covering all 13 tools. Dogfooding begins: `.mcp.json` at the repo root
+  registers the local Gloss server at `http://localhost:4747/mcp` so Claude
+  Code in this repo can read threads and reply through the UI live.
 - 2026-07-12: Milestone 5 complete — session CRUD, thread creation from a
   line-range selection, nested comment replies, resolve/reopen, and a
   thread list with an `anchor_status` filter, all server-rendered.
