@@ -1,6 +1,7 @@
 package plugins
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -53,5 +54,38 @@ func TestPlaintextRendersEmptyFile(t *testing.T) {
 	}
 	if strings.Contains(string(views[0].HTML), "Binary file not shown") {
 		t.Errorf("empty file must not be treated as binary")
+	}
+}
+
+func TestPlaintextWrapsEachLineWithDataLine(t *testing.T) {
+	p := NewPlaintext()
+	views, err := p.Render(File{Path: "a.txt", Content: []byte("one\ntwo\nthree\n")})
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := string(views[0].HTML)
+	for n, want := range map[int]string{1: "one", 2: "two", 3: "three"} {
+		wantAttr := fmt.Sprintf(`data-line="%d"`, n)
+		if !strings.Contains(html, wantAttr) {
+			t.Errorf("HTML missing %q: %s", wantAttr, html)
+		}
+		if !strings.Contains(html, want) {
+			t.Errorf("HTML missing line content %q: %s", want, html)
+		}
+	}
+	if strings.Contains(html, `data-line="4"`) {
+		t.Errorf("trailing newline must not produce a phantom fourth line: %s", html)
+	}
+}
+
+func TestPlaintextNoTrailingNewlineStillCountsLastLine(t *testing.T) {
+	p := NewPlaintext()
+	views, err := p.Render(File{Path: "a.txt", Content: []byte("one\ntwo")})
+	if err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := string(views[0].HTML)
+	if !strings.Contains(html, `data-line="2"`) {
+		t.Errorf("HTML missing data-line=\"2\" for content with no trailing newline: %s", html)
 	}
 }
