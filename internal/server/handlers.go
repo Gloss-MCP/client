@@ -8,6 +8,7 @@ import (
 
 	"github.com/gloss-mcp/client/internal/connector"
 	"github.com/gloss-mcp/client/internal/plugins"
+	"github.com/gloss-mcp/client/internal/store"
 )
 
 // layoutData is the top-level template data for the full page.
@@ -15,6 +16,13 @@ type layoutData struct {
 	RepoName string
 	Tree     *treeNode
 	File     *fileViewData // nil when no file is selected
+	Sessions []*store.Session
+	// Session and ActiveSessionID are always nil/empty here -- plain
+	// /files browsing has no session context. They exist so layoutData
+	// and sessionPageData share the fields the "sessionSwitcher"
+	// template reads.
+	Session         *store.Session
+	ActiveSessionID string
 }
 
 // fileViewData is the template data for the content-pane partial.
@@ -27,6 +35,17 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /{$}", s.handleBrowse)
 	s.mux.HandleFunc("GET /files/{path...}", s.handleBrowse)
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticContentFS)))
+
+	s.mux.HandleFunc("POST /sessions", s.handleCreateSession)
+	s.mux.HandleFunc("POST /sessions/{id}", s.handleUpdateSession)
+	s.mux.HandleFunc("POST /sessions/{id}/delete", s.handleDeleteSession)
+
+	s.mux.HandleFunc("GET /s/{sessionID}", s.handleSessionBrowse)
+	s.mux.HandleFunc("GET /s/{sessionID}/files/{path...}", s.handleSessionBrowse)
+	s.mux.HandleFunc("POST /s/{sessionID}/threads", s.handleCreateThread)
+	s.mux.HandleFunc("POST /s/{sessionID}/threads/{threadID}/comments", s.handleAddComment)
+	s.mux.HandleFunc("POST /s/{sessionID}/threads/{threadID}/resolve", s.handleResolveThread)
+	s.mux.HandleFunc("POST /s/{sessionID}/threads/{threadID}/reopen", s.handleReopenThread)
 }
 
 // handleBrowse serves both the empty index ("/") and a selected file
@@ -42,7 +61,7 @@ func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := layoutData{RepoName: s.cfg.RepoName, Tree: buildTree(paths)}
+	data := layoutData{RepoName: s.cfg.RepoName, Tree: buildTree(paths), Sessions: s.listSessions(r.Context())}
 
 	if path != "" {
 		if !containsPath(paths, path) {

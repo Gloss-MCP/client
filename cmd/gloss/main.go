@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"syscall"
 
@@ -47,6 +48,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	token := fs.String("token", "", "Gloss Cloud API token (not yet available)")
 	port := fs.Int("port", defaultPort, "port to serve on (0 for an OS-assigned port)")
 	noOpen := fs.Bool("no-open", false, "do not open a browser tab automatically")
+	author := fs.String("author", defaultAuthor(), "display name attributed to threads and comments you create")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -101,9 +103,12 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	srv := server.New(server.Config{
 		Root:          abs,
 		RepoName:      repo.Name,
+		RepoID:        repo.ID,
 		ConnectorType: repo.ConnectorType,
 		Port:          *port,
 		Registry:      plugins.NewRegistry(plugins.NewPlaintext()),
+		Store:         st,
+		Author:        *author,
 	})
 
 	onReady := func(addr string) {
@@ -125,6 +130,17 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// defaultAuthor is the -author flag's default: the local OS user's
+// username, so multi-person local setups (e.g. a shared machine) still
+// get a real name attributed. Falls back to a generic label if the OS
+// user can't be resolved (e.g. some sandboxed/CI environments).
+func defaultAuthor() string {
+	if u, err := user.Current(); err == nil && u.Username != "" {
+		return u.Username
+	}
+	return "reviewer"
 }
 
 // openStoreAndSnapshot creates <dir>/.gloss/gloss.db (and .gloss/ itself),

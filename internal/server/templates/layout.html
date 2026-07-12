@@ -7,12 +7,14 @@
 <title>Gloss — {{.RepoName}}</title>
 <link rel="stylesheet" href="/static/css/app.css">
 <script src="/static/vendor/htmx.min.js"></script>
+<script defer src="/static/js/gloss.js"></script>
 <script defer src="/static/vendor/alpine.min.js"></script>
 </head>
 <body class="h-screen flex text-sm text-gray-900 antialiased">
   <nav id="tree" class="w-64 shrink-0 overflow-y-auto border-r border-gray-200 p-3">
     <div class="font-semibold mb-2">{{.RepoName}}</div>
-    {{template "treeChildren" .Tree}}
+    {{template "sessionSwitcher" .}}
+    {{template "treeChildren" (treeCtx .Tree "" "#file-content")}}
   </nav>
   <main id="file-content" class="flex-1 overflow-y-auto p-4">
     {{template "fileContent" .File}}

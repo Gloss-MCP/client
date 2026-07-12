@@ -18,9 +18,15 @@ import (
 type Config struct {
 	Root          string // absolute path to the directory being served
 	RepoName      string
+	RepoID        string
 	ConnectorType store.ConnectorType
 	Port          int // 0 = OS-assigned
 	Registry      *plugins.Registry
+	Store         *store.Store
+	// Author identifies the local human user, attributed on threads and
+	// comments created through the UI (docs/data-model.md#local-adaptations
+	// -- local mode has no auth, so this is a plain configured value).
+	Author string
 }
 
 // Server serves the read-only file-browser UI over HTTP.

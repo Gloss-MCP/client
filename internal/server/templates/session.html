@@ -1,0 +1,165 @@
+{{define "sessionSwitcher"}}
+<div class="mb-3 pb-3 border-b border-gray-200" x-data="{open: {{if .ActiveSessionID}}false{{else}}true{{end}}}">
+  <button type="button" class="w-full text-left flex items-center justify-between font-medium" @click="open = !open">
+    <span>{{if .Session}}{{.Session.Name}}{{else}}Sessions{{end}}</span>
+    <span class="text-gray-400">▾</span>
+  </button>
+  <div x-show="open" class="mt-2 space-y-1">
+    {{range .Sessions}}
+    <a href="/s/{{.ID}}" class="block truncate {{if eq .ID $.ActiveSessionID}}font-semibold{{else}}text-gray-600 hover:underline{{end}}">{{.Name}} <span class="text-xs text-gray-400">({{.Status}})</span></a>
+    {{else}}
+    <p class="text-gray-400 text-xs">No sessions yet.</p>
+    {{end}}
+    <form method="post" action="/sessions" class="mt-2 space-y-1">
+      <input type="text" name="name" placeholder="New session name" required class="w-full border border-gray-300 rounded px-1 py-0.5 text-xs">
+      <button type="submit" class="w-full text-xs bg-gray-900 text-white rounded px-1 py-0.5">+ New session</button>
+    </form>
+  </div>
+</div>
+{{end}}
+
+{{define "sessionLayout"}}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gloss — {{.RepoName}} — {{.Session.Name}}</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="/static/vendor/htmx.min.js"></script>
+<script defer src="/static/js/gloss.js"></script>
+<script defer src="/static/vendor/alpine.min.js"></script>
+</head>
+<body class="h-screen flex text-sm text-gray-900 antialiased">
+  <nav id="tree" class="w-64 shrink-0 overflow-y-auto border-r border-gray-200 p-3">
+    <div class="font-semibold mb-2">{{.RepoName}}</div>
+    {{template "sessionSwitcher" .}}
+    {{template "treeChildren" (treeCtx .Tree (print "/s/" .Session.ID) "#session-main")}}
+  </nav>
+  <div id="session-main" class="flex-1 flex flex-col overflow-hidden">
+    {{template "sessionMain" .Main}}
+  </div>
+</body>
+</html>
+{{end}}
+
+{{define "sessionHeader"}}
+<div class="border-b border-gray-200 p-3 flex items-start justify-between gap-4">
+  <form method="post" action="/sessions/{{.Session.ID}}" class="flex-1 flex items-center gap-2">
+    <input type="hidden" name="return_to" value="/s/{{.Session.ID}}">
+    <input type="text" name="name" value="{{.Session.Name}}" required class="font-semibold border border-transparent hover:border-gray-300 rounded px-1 py-0.5">
+    <select name="status" onchange="this.form.requestSubmit()" class="text-xs border border-gray-300 rounded px-1 py-0.5">
+      <option value="open" {{if eq .Session.Status "open"}}selected{{end}}>Open</option>
+      <option value="resolved" {{if eq .Session.Status "resolved"}}selected{{end}}>Resolved</option>
+      <option value="archived" {{if eq .Session.Status "archived"}}selected{{end}}>Archived</option>
+    </select>
+    <button type="submit" class="text-xs text-gray-500 hover:underline">Save</button>
+  </form>
+  <form method="post" action="/sessions/{{.Session.ID}}/delete" onsubmit="return confirm('Delete this session and all its threads?')">
+    <input type="hidden" name="return_to" value="/">
+    <button type="submit" class="text-xs text-red-600 hover:underline">Delete session</button>
+  </form>
+</div>
+{{end}}
+
+{{define "sessionMain"}}
+{{template "sessionHeader" .}}
+<div class="flex-1 flex overflow-hidden">
+  {{if .Path}}
+  <div class="flex-1 overflow-y-auto p-4">{{template "codePane" .}}</div>
+  <div class="w-96 shrink-0 overflow-y-auto border-l border-gray-200 p-3">{{template "threadPanel" .}}</div>
+  {{else}}
+  <div class="flex-1 overflow-y-auto p-4">
+    <p class="text-gray-400 text-sm mb-4">Select a file to annotate it, or browse this session's threads below.</p>
+    {{template "threadPanel" .}}
+  </div>
+  {{end}}
+</div>
+{{end}}
+
+{{define "codePane"}}
+<div x-data="glossCodeView({{.ThreadLines | toJSON}})" x-init="init()" @click="onLineClick($event)">
+  <h2 class="font-mono text-xs text-gray-500 mb-2">{{.Path}}</h2>
+  {{range .Views}}{{.HTML}}{{end}}
+
+  <div x-show="selStart !== null" x-cloak class="sticky bottom-0 bg-white border border-gray-300 rounded p-2 mt-2 shadow">
+    <form method="post" action="/s/{{.SessionID}}/threads">
+      <input type="hidden" name="file_path" value="{{.Path}}">
+      <input type="hidden" name="return_to" value="{{.ReturnTo}}">
+      <input type="hidden" name="start_line" x-bind:value="selRange().start">
+      <input type="hidden" name="end_line" x-bind:value="selRange().end">
+      <p class="text-xs text-gray-500 mb-1" x-text="'Comment on line ' + selLabel()"></p>
+      <textarea name="body" required rows="2" class="w-full border border-gray-300 rounded p-1 text-sm" placeholder="Add a comment..."></textarea>
+      <div class="flex justify-end gap-2 mt-1">
+        <button type="button" class="text-xs text-gray-500" @click="clearSelection()">Cancel</button>
+        <button type="submit" class="text-xs bg-gray-900 text-white rounded px-2 py-1">Comment</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}
+
+{{define "threadPanel"}}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h3 class="font-semibold">Threads</h3>
+    <form method="get" class="text-xs">
+      <select name="status" onchange="this.form.submit()" class="border border-gray-300 rounded px-1 py-0.5">
+        <option value="" {{if eq .StatusFilter ""}}selected{{end}}>All</option>
+        <option value="active" {{if eq .StatusFilter "active"}}selected{{end}}>Active</option>
+        <option value="orphaned" {{if eq .StatusFilter "orphaned"}}selected{{end}}>Orphaned</option>
+        <option value="resolved" {{if eq .StatusFilter "resolved"}}selected{{end}}>Resolved</option>
+      </select>
+    </form>
+  </div>
+
+  {{range .Threads}}
+  <div class="border border-gray-200 rounded p-2" id="thread-{{.Thread.ID}}">
+    <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+      <span>{{if .FilePath}}{{.FilePath}} · {{end}}{{with .Thread.Anchor}}line {{.StartLine}}{{if ne .StartLine .EndLine}}-{{.EndLine}}{{end}}{{end}}</span>
+      <span class="uppercase">{{.Thread.AnchorStatus}}</span>
+    </div>
+    {{range .Comments}}{{template "commentNode" .}}{{end}}
+
+    <div class="mt-2">
+      {{if eq .Thread.AnchorStatus "resolved"}}
+      <form method="post" action="/s/{{$.SessionID}}/threads/{{.Thread.ID}}/reopen">
+        <input type="hidden" name="return_to" value="{{$.ReturnTo}}">
+        <button type="submit" class="text-xs text-blue-600">Reopen</button>
+      </form>
+      {{else}}
+      <form method="post" action="/s/{{$.SessionID}}/threads/{{.Thread.ID}}/resolve">
+        <input type="hidden" name="return_to" value="{{$.ReturnTo}}">
+        <button type="submit" class="text-xs text-blue-600">Resolve</button>
+      </form>
+      {{end}}
+    </div>
+
+    <form method="post" action="/s/{{$.SessionID}}/threads/{{.Thread.ID}}/comments" class="mt-2">
+      <input type="hidden" name="return_to" value="{{$.ReturnTo}}">
+      <textarea name="body" required rows="1" class="w-full border border-gray-300 rounded p-1 text-xs" placeholder="Reply..."></textarea>
+      <button type="submit" class="text-xs bg-gray-900 text-white rounded px-2 py-0.5 mt-1">Reply</button>
+    </form>
+  </div>
+  {{else}}
+  <p class="text-gray-400 text-xs">No threads{{if .StatusFilter}} with status "{{.StatusFilter}}"{{end}} yet.</p>
+  {{end}}
+</div>
+{{end}}
+
+{{define "commentNode"}}
+<div class="border-l-2 border-gray-200 pl-2 mt-2" x-data="{replying: false}">
+  <p class="text-xs text-gray-500">{{if .Comment.AuthorAgent}}{{.Comment.AuthorAgent}}{{else}}{{.Comment.AuthorType}}{{end}} <span class="text-gray-400">· {{.Comment.CreatedAt.Format "Jan 2 15:04"}}</span></p>
+  <p class="text-sm whitespace-pre-wrap">{{.Comment.Body}}</p>
+  <button type="button" class="text-xs text-blue-600" @click="replying = !replying">Reply</button>
+  <div x-show="replying" x-cloak>
+    <form method="post" action="{{.ReplyAction}}" class="mt-1">
+      <input type="hidden" name="return_to" value="{{.ReturnTo}}">
+      <input type="hidden" name="parent_comment_id" value="{{.Comment.ID}}">
+      <textarea name="body" required rows="1" class="w-full border border-gray-300 rounded p-1 text-xs"></textarea>
+      <button type="submit" class="text-xs bg-gray-900 text-white rounded px-2 py-0.5 mt-1">Reply</button>
+    </form>
+  </div>
+  {{range .Children}}{{template "commentNode" .}}{{end}}
+</div>
+{{end}}

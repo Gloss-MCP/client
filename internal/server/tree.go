@@ -50,6 +50,18 @@ func insertPath(root *treeNode, path string) {
 	}
 }
 
+// treeCtx carries the link prefix and HTMX swap target through the
+// "treeChildren" template's recursion, since a {{template}} invocation
+// in html/template resets "$" -- each recursive call must pass this
+// context down explicitly rather than reading it from an ancestor.
+// Plain browsing uses LinkPrefix "" and HXTarget "#file-content";
+// session-scoped browsing uses "/s/{sessionID}" and "#session-main".
+type treeCtx struct {
+	Node       *treeNode
+	LinkPrefix string
+	HXTarget   string
+}
+
 func sortTree(n *treeNode) {
 	sort.Slice(n.Children, func(i, j int) bool {
 		a, b := n.Children[i], n.Children[j]
