@@ -44,72 +44,72 @@ const (
 // there is a single repository record: the directory `gloss .` was run
 // against.
 type Repository struct {
-	ID              string
-	Name            string
-	ConnectorType   ConnectorType
-	ConnectorConfig string // JSON; connector-specific settings
-	CreatedAt       time.Time
+	ID              string        `json:"id"`
+	Name            string        `json:"name"`
+	ConnectorType   ConnectorType `json:"connector_type"`
+	ConnectorConfig string        `json:"connector_config"` // JSON; connector-specific settings
+	CreatedAt       time.Time     `json:"created_at"`
 }
 
 // Session is the top-level container for a review.
 type Session struct {
-	ID          string
-	RepoID      string
-	Name        string
-	Description string
-	Status      SessionStatus
-	CreatedBy   string // plain identity value; local mode has no users
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          string        `json:"id"`
+	RepoID      string        `json:"repo_id"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Status      SessionStatus `json:"status"`
+	CreatedBy   string        `json:"created_by"` // plain identity value; local mode has no users
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
 }
 
 // SessionStats summarises a session for get_session-style views.
 type SessionStats struct {
-	TotalThreads    int
-	ActiveThreads   int
-	OrphanedThreads int
-	ResolvedThreads int
+	TotalThreads    int `json:"total_threads"`
+	ActiveThreads   int `json:"active_threads"`
+	OrphanedThreads int `json:"orphaned_threads"`
+	ResolvedThreads int `json:"resolved_threads"`
 	// TotalComments counts non-deleted comments across the session's
 	// threads.
-	TotalComments int
+	TotalComments int `json:"total_comments"`
 }
 
 // FileSnapshot is the captured state of a file at the moment a thread
 // was anchored to it. Delta tracking (milestone 7) compares live content
 // against this.
 type FileSnapshot struct {
-	ID           string
-	RepoID       string
-	Path         string // relative to the repository root, slash-separated
-	ContentHash  string
-	CapturedAt   time.Time
-	GitCommitSHA string // optional; anchor fallback when the repo is git
+	ID           string    `json:"id"`
+	RepoID       string    `json:"repo_id"`
+	Path         string    `json:"path"` // relative to the repository root, slash-separated
+	ContentHash  string    `json:"content_hash"`
+	CapturedAt   time.Time `json:"captured_at"`
+	GitCommitSHA string    `json:"git_commit_sha"` // optional; anchor fallback when the repo is git
 }
 
 // Thread is an annotation conversation anchored to a position in a
 // file. A thread belongs to exactly one session for its lifetime.
 type Thread struct {
-	ID             string
-	SessionID      string
-	FileSnapshotID string
-	Anchor         Anchor
-	AnchorStatus   AnchorStatus
-	CreatedBy      string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID             string       `json:"id"`
+	SessionID      string       `json:"session_id"`
+	FileSnapshotID string       `json:"file_snapshot_id"`
+	Anchor         Anchor       `json:"anchor"`
+	AnchorStatus   AnchorStatus `json:"anchor_status"`
+	CreatedBy      string       `json:"created_by"`
+	CreatedAt      time.Time    `json:"created_at"`
+	UpdatedAt      time.Time    `json:"updated_at"`
 }
 
 // Comment is a message in a thread, from a human or an AI. Nested
 // replies via ParentCommentID give a full conversation history per
 // annotation.
 type Comment struct {
-	ID              string
-	ThreadID        string
-	ParentCommentID string // empty for top-level comments
-	AuthorType      AuthorType
-	AuthorAgent     string // optional; e.g. "claude-opus-4"
-	Body            string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	DeletedAt       *time.Time // soft delete
+	ID              string     `json:"id"`
+	ThreadID        string     `json:"thread_id"`
+	ParentCommentID string     `json:"parent_comment_id,omitempty"` // empty for top-level comments
+	AuthorType      AuthorType `json:"author_type"`
+	AuthorAgent     string     `json:"author_agent,omitempty"` // optional; e.g. "claude-opus-4"
+	Body            string     `json:"body"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	DeletedAt       *time.Time `json:"deleted_at,omitempty"` // soft delete
 }
