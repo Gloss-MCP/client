@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/gloss-mcp/client/internal/connector"
+	glossmcp "github.com/gloss-mcp/client/internal/mcp"
 	"github.com/gloss-mcp/client/internal/plugins"
 	"github.com/gloss-mcp/client/internal/store"
 )
@@ -32,6 +33,13 @@ type fileViewData struct {
 }
 
 func (s *Server) routes() {
+	s.mux.Handle("/mcp", glossmcp.NewHandler(glossmcp.Config{
+		Store:         s.cfg.Store,
+		RepoID:        s.cfg.RepoID,
+		Root:          s.cfg.Root,
+		ConnectorType: s.cfg.ConnectorType,
+	}))
+
 	s.mux.HandleFunc("GET /{$}", s.handleBrowse)
 	s.mux.HandleFunc("GET /files/{path...}", s.handleBrowse)
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticContentFS)))
