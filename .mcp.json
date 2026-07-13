@@ -1,7 +1,8 @@
 {
   "mcpServers": {
     "gloss": {
-      "url": "http://localhost:4747/mcp"
+      "url": "http://localhost:4747/mcp",
+      "type": "http"
     }
   }
 }
