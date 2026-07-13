@@ -80,7 +80,9 @@ Project-specific overrides and additions:
   shipped binary's build. `make e2e` runs `npm ci` + `npx playwright
   test` there.
 - **The Makefile is the single entry point.** `make run / test / lint /
-  e2e / build / assets`. CI and agents use only these targets.
+  e2e / build / assets`. CI and agents use only these targets. Always
+  invoke Makefile targets directly — never construct the underlying
+  commands by hand.
 - **CLAUDE.md stays current.** When a milestone changes how the repo works,
   update CLAUDE.md in the same PR — context drift is a bug.
 - **Testing per PRINCIPLES.md (business repo): no test suite, no merge.**
