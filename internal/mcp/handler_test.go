@@ -242,10 +242,10 @@ func TestSessionRoundTrip(t *testing.T) {
 
 func TestSessionMissingFields(t *testing.T) {
 	session, _, _, _ := newTestEnv(t)
-	callToolExpectError(t, session, "create_session", map[string]any{"name": "x"})       // missing repo_id
-	callToolExpectError(t, session, "create_session", map[string]any{"repo_id": "r"})    // missing name
-	callToolExpectError(t, session, "list_sessions", map[string]any{})                    // missing repo_id
-	callToolExpectError(t, session, "get_session", map[string]any{})                      // missing session_id
+	callToolExpectError(t, session, "create_session", map[string]any{"name": "x"})    // missing repo_id
+	callToolExpectError(t, session, "create_session", map[string]any{"repo_id": "r"}) // missing name
+	callToolExpectError(t, session, "list_sessions", map[string]any{})                // missing repo_id
+	callToolExpectError(t, session, "get_session", map[string]any{})                  // missing session_id
 }
 
 func TestThreadRoundTrip(t *testing.T) {

@@ -79,13 +79,13 @@ type getThreadParams struct {
 }
 
 type listThreadsParams struct {
-	SessionID   string `json:"session_id"             jsonschema:"required,Session to list threads from"`
-	FilePath    string `json:"file_path,omitempty"    jsonschema:"Exact file path filter"`
-	Directory   string `json:"directory,omitempty"    jsonschema:"Directory prefix filter (e.g. src/)"`
-	FileType    string `json:"file_type,omitempty"    jsonschema:"File extension filter (e.g. go or .go)"`
+	SessionID    string `json:"session_id"             jsonschema:"required,Session to list threads from"`
+	FilePath     string `json:"file_path,omitempty"    jsonschema:"Exact file path filter"`
+	Directory    string `json:"directory,omitempty"    jsonschema:"Directory prefix filter (e.g. src/)"`
+	FileType     string `json:"file_type,omitempty"    jsonschema:"File extension filter (e.g. go or .go)"`
 	AnchorStatus string `json:"anchor_status,omitempty" jsonschema:"Filter by anchor status: active, orphaned, or resolved"`
-	AuthorType  string `json:"author_type,omitempty"  jsonschema:"Filter by root comment author type: human or ai"`
-	AuthorAgent string `json:"author_agent,omitempty" jsonschema:"Filter by root comment author_agent value"`
+	AuthorType   string `json:"author_type,omitempty"  jsonschema:"Filter by root comment author type: human or ai"`
+	AuthorAgent  string `json:"author_agent,omitempty" jsonschema:"Filter by root comment author_agent value"`
 }
 
 type threadIDParams struct {
