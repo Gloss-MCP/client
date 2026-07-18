@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/gloss-mcp/client/internal/connector"
+	"github.com/gloss-mcp/client/internal/delta"
 	"github.com/gloss-mcp/client/internal/plugins"
 	"github.com/gloss-mcp/client/internal/store"
 )
@@ -214,14 +215,22 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	lines := delta.SplitLines(content)
+	ctxBefore, ctxAfter := delta.ExtractContext(lines, startLine, endLine, delta.ContextLines)
+
 	if _, _, err := s.cfg.Store.CreateThread(ctx, store.CreateThreadParams{
 		SessionID:      sessionID,
 		FileSnapshotID: snap.ID,
-		Anchor:         store.LineAnchor{StartLine: startLine, EndLine: endLine},
-		CreatedBy:      s.cfg.Author,
-		Body:           body,
-		AuthorType:     store.AuthorHuman,
-		AuthorAgent:    s.cfg.Author,
+		Anchor: store.LineAnchor{
+			StartLine:     startLine,
+			EndLine:       endLine,
+			ContextBefore: ctxBefore,
+			ContextAfter:  ctxAfter,
+		},
+		CreatedBy:   s.cfg.Author,
+		Body:        body,
+		AuthorType:  store.AuthorHuman,
+		AuthorAgent: s.cfg.Author,
 	}); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return

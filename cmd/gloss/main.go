@@ -16,6 +16,7 @@ import (
 	"syscall"
 
 	"github.com/gloss-mcp/client/internal/connector"
+	"github.com/gloss-mcp/client/internal/delta"
 	"github.com/gloss-mcp/client/internal/plugins"
 	"github.com/gloss-mcp/client/internal/server"
 	"github.com/gloss-mcp/client/internal/store"
@@ -110,6 +111,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		Store:         st,
 		Author:        *author,
 	})
+
+	if w, err := delta.New(abs, repo.ID, repo.ConnectorType, st); err != nil {
+		fmt.Fprintf(stderr, "gloss: file watcher unavailable: %v\n", err)
+	} else {
+		go func() {
+			if err := w.Run(ctx, nil); err != nil && !errors.Is(err, context.Canceled) {
+				fmt.Fprintf(stderr, "gloss: watcher: %v\n", err)
+			}
+		}()
+	}
 
 	onReady := func(addr string) {
 		url := "http://" + addr

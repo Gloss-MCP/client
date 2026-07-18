@@ -213,6 +213,37 @@ func (s *Store) UpdateThreadAnchor(ctx context.Context, id string, anchor Anchor
 	return s.getThread(ctx, id)
 }
 
+// ListActiveLineThreadsForPath returns active line-anchored threads whose
+// file snapshot belongs to the given repo and path. Called by the delta
+// watcher to find threads to remap after a file change.
+func (s *Store) ListActiveLineThreadsForPath(ctx context.Context, repoID, path string) ([]*Thread, error) {
+	query := selectThreads + `
+		 JOIN file_snapshots fs ON fs.id = t.file_snapshot_id
+		 WHERE fs.repo_id = ? AND fs.path = ?
+		   AND t.anchor_type = 'line'
+		   AND t.anchor_status = 'active'
+		 ORDER BY t.created_at, t.id`
+
+	rows, err := s.db.QueryContext(ctx, query, repoID, path)
+	if err != nil {
+		return nil, fmt.Errorf("store: list active line threads for %s: %w", path, err)
+	}
+	defer rows.Close()
+
+	var threads []*Thread
+	for rows.Next() {
+		t, err := scanThread(rows)
+		if err != nil {
+			return nil, fmt.Errorf("store: list active line threads for %s: %w", path, err)
+		}
+		threads = append(threads, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: list active line threads for %s: %w", path, err)
+	}
+	return threads, nil
+}
+
 const selectThreads = `SELECT t.id, t.session_id, t.file_snapshot_id, t.anchor_type, t.anchor, t.anchor_status, t.created_by, t.created_at, t.updated_at
 		 FROM threads t`
 

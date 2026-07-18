@@ -12,6 +12,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/gloss-mcp/client/internal/delta"
 	"github.com/gloss-mcp/client/internal/store"
 )
 
@@ -122,6 +123,14 @@ func handleCreateThread(ctx context.Context, req *mcp.CallToolRequest, cfg Confi
 	snap, err := resolveSnapshot(ctx, cfg, p.FilePath, content)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// Populate context lines for line anchors so the delta watcher can
+	// remap after file edits.
+	if la, ok := anchor.(store.LineAnchor); ok {
+		lines := delta.SplitLines(content)
+		la.ContextBefore, la.ContextAfter = delta.ExtractContext(lines, la.StartLine, la.EndLine, delta.ContextLines)
+		anchor = la
 	}
 
 	thread, _, err := cfg.Store.CreateThread(ctx, store.CreateThreadParams{

@@ -288,6 +288,70 @@ func TestListThreadsFilters(t *testing.T) {
 	}
 }
 
+func TestListActiveLineThreadsForPath(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	repo := testRepo(t, s)
+	sess := testSession(t, s, repo.ID)
+
+	snapGo := testSnapshot(t, s, repo.ID, "main.go")
+	snapPng := testSnapshot(t, s, repo.ID, "logo.png")
+
+	// Active line thread on main.go — should be returned.
+	lineActive := testThread(t, s, sess.ID, snapGo.ID)
+
+	// Orphaned line thread on main.go — must NOT be returned.
+	lineOrphaned := testThread(t, s, sess.ID, snapGo.ID)
+	if _, err := s.SetAnchorStatus(ctx, lineOrphaned.ID, AnchorOrphaned); err != nil {
+		t.Fatalf("SetAnchorStatus: %v", err)
+	}
+
+	// Active region (non-line) thread on main.go — must NOT be returned.
+	regionThread, _, err := s.CreateThread(ctx, CreateThreadParams{
+		SessionID:      sess.ID,
+		FileSnapshotID: snapGo.ID,
+		Anchor:         RegionAnchor{X: 10, Y: 10, Width: 50, Height: 50},
+		CreatedBy:      "ben",
+		Body:           "region",
+		AuthorType:     AuthorHuman,
+	})
+	if err != nil {
+		t.Fatalf("CreateThread region: %v", err)
+	}
+	_ = regionThread
+
+	// Active line thread on a different file — must NOT be returned.
+	otherSnap := testSnapshot(t, s, repo.ID, "other.go")
+	testThread(t, s, sess.ID, otherSnap.ID)
+
+	// Active line thread on a png — verifies path filter works.
+	testThread(t, s, sess.ID, snapPng.ID)
+
+	got, err := s.ListActiveLineThreadsForPath(ctx, repo.ID, "main.go")
+	if err != nil {
+		t.Fatalf("ListActiveLineThreadsForPath: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("got %d threads, want 1", len(got))
+	}
+	if got[0].ID != lineActive.ID {
+		t.Errorf("got thread %s, want %s", got[0].ID, lineActive.ID)
+	}
+
+	// Cross-repo isolation: same path in a different repo must return nothing.
+	repo2, err := s.CreateRepository(ctx, "other-repo", ConnectorLocal, "")
+	if err != nil {
+		t.Fatalf("CreateRepository: %v", err)
+	}
+	cross, err := s.ListActiveLineThreadsForPath(ctx, repo2.ID, "main.go")
+	if err != nil {
+		t.Fatalf("ListActiveLineThreadsForPath cross-repo: %v", err)
+	}
+	if len(cross) != 0 {
+		t.Errorf("cross-repo returned %d threads, want 0", len(cross))
+	}
+}
+
 func TestListThreadsScopedToSession(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()

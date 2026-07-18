@@ -16,6 +16,9 @@ cpSync(fixtureSrc, fixtureDir, { recursive: true });
 
 const PORT = 4747;
 
+// Expose fixtureDir so delta e2e tests can write files into the live dir.
+process.env.GLOSS_FIXTURE_DIR = fixtureDir;
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
