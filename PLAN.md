@@ -158,7 +158,7 @@ client. **Dogfooding begins here.**
 
 *Exit: Claude Code can read threads and reply into the UI live.*
 
-### 7. Delta tracking & anchor remap
+### 7. Delta tracking & anchor remap — complete
 
 Context-line capture, fuzzy re-match on file change, orphaned-thread
 state and its UI treatment, fsnotify live re-anchoring, git-SHA
@@ -292,6 +292,16 @@ concern.
   covering all 13 tools. Dogfooding begins: `.mcp.json` at the repo root
   registers the local Gloss server at `http://localhost:4747/mcp` so Claude
   Code in this repo can read threads and reply through the UI live.
+- 2026-07-18: Milestone 7 complete — `internal/delta` package lands with
+  `ExtractContext`, `Remap` (fuzzy context-line scoring, re-extracts fresh
+  context on success), `RemapViaGitDiff` (unified-diff hunk parser as
+  fallback), and a `Watcher` (fsnotify, per-path debounce, ready channel
+  for test sync). `internal/store` gains `ListActiveLineThreadsForPath`
+  for the watcher. Thread creation (both UI and MCP) now populates
+  `ContextBefore`/`ContextAfter` on `LineAnchor`. Orphaned threads show
+  yellow styling and a Reopen button (not Resolve). `cmd/gloss` starts
+  the watcher goroutine best-effort on startup. Playwright e2e covers
+  remap, orphan, reopen, and file-delete scenarios.
 - 2026-07-12: Milestone 5 complete — session CRUD, thread creation from a
   line-range selection, nested comment replies, resolve/reopen, and a
   thread list with an `anchor_status` filter, all server-rendered.
