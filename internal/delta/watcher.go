@@ -179,7 +179,7 @@ func (w *Watcher) debounce(ctx context.Context, relPath string) {
 }
 
 // remapFile reads the current file content and, for each active
-// line-anchored thread anchored to that file, attempts to remap the
+// line- or cell-anchored thread anchored to that file, attempts to remap the
 // anchor. Threads that cannot be remapped are orphaned.
 func (w *Watcher) remapFile(ctx context.Context, relPath string) {
 	absPath := filepath.Join(w.root, filepath.FromSlash(relPath))
@@ -203,41 +203,62 @@ func (w *Watcher) remapFile(ctx context.Context, relPath string) {
 	})
 
 	for _, t := range threads {
-		la, ok := t.Anchor.(store.LineAnchor)
-		if !ok {
-			continue
-		}
-
 		// Skip if the file content matches the snapshot this thread was
 		// anchored to — nothing has changed.
 		snap, err := w.st.GetFileSnapshot(ctx, t.FileSnapshotID)
 		if err == nil && snap.ContentHash == newHash {
 			continue
 		}
-
-		// Try fuzzy context match first.
-		remapped, ok := Remap(la, newLines)
-		if ok {
-			_, _ = w.st.UpdateThreadAnchor(ctx, t.ID, remapped)
-			continue
-		}
-
-		// Fall back to git diff if the snapshot has a commit SHA.
 		var gitSHA string
 		if snap != nil {
 			gitSHA = snap.GitCommitSHA
 		}
-		if gitSHA != "" {
-			remapped, ok = RemapViaGitDiff(ctx, w.root, relPath, gitSHA, la)
-			if ok {
-				_, _ = w.st.UpdateThreadAnchor(ctx, t.ID, remapped)
-				continue
-			}
+
+		var remapped store.Anchor
+		switch a := t.Anchor.(type) {
+		case store.LineAnchor:
+			remapped = w.remapLine(ctx, relPath, gitSHA, a, newLines)
+		case store.CellAnchor:
+			remapped = w.remapCell(ctx, relPath, gitSHA, a, content)
+		default:
+			continue
 		}
 
+		if remapped != nil {
+			_, _ = w.st.UpdateThreadAnchor(ctx, t.ID, remapped)
+			continue
+		}
 		// Could not remap — orphan.
 		_, _ = w.st.SetAnchorStatus(ctx, t.ID, store.AnchorOrphaned)
 	}
+}
+
+// remapLine tries the fuzzy context match, then the git-diff fallback. A
+// nil result means the anchor could not be located.
+func (w *Watcher) remapLine(ctx context.Context, relPath, gitSHA string, la store.LineAnchor, newLines []string) store.Anchor {
+	if remapped, ok := Remap(la, newLines); ok {
+		return remapped
+	}
+	if gitSHA != "" {
+		if remapped, ok := RemapViaGitDiff(ctx, w.root, relPath, gitSHA, la); ok {
+			return remapped
+		}
+	}
+	return nil
+}
+
+// remapCell is remapLine for cell anchors; the column is re-resolved by
+// header after the row is located.
+func (w *Watcher) remapCell(ctx context.Context, relPath, gitSHA string, ca store.CellAnchor, content []byte) store.Anchor {
+	if remapped, ok := RemapCell(ca, content); ok {
+		return remapped
+	}
+	if gitSHA != "" {
+		if remapped, ok := RemapCellViaGitDiff(ctx, w.root, relPath, gitSHA, ca, content); ok {
+			return remapped
+		}
+	}
+	return nil
 }
 
 // orphanFile marks all active line-anchored threads for relPath as orphaned.

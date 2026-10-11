@@ -26,6 +26,13 @@ import (
 // Returns (remapped, true) on success, or (zero, false) when the anchor
 // cannot be located with sufficient confidence.
 func Remap(anchor store.LineAnchor, newLines []string) (store.LineAnchor, bool) {
+	return remapWith(anchor, newLines, func(a, b string) bool { return normalize(a) == normalize(b) })
+}
+
+// remapWith is Remap with a pluggable line-equality predicate, so callers
+// with format-specific notions of "the same line" (csv rows that gained
+// a column) reuse the scoring and threshold logic.
+func remapWith(anchor store.LineAnchor, newLines []string, same func(old, cur string) bool) (store.LineAnchor, bool) {
 	totalCtx := len(anchor.ContextBefore) + len(anchor.ContextAfter)
 	if totalCtx == 0 {
 		return store.LineAnchor{}, false
@@ -40,7 +47,7 @@ func Remap(anchor store.LineAnchor, newLines []string) (store.LineAnchor, bool) 
 
 	bestScore, bestPos := -1, -1
 	for pos := 0; pos <= len(newLines)-anchorLen; pos++ {
-		score := scoreCandidate(anchor, newLines, pos, anchorLen)
+		score := scoreCandidate(anchor, newLines, pos, anchorLen, same)
 		if score > bestScore {
 			bestScore, bestPos = score, pos
 		}
@@ -67,14 +74,14 @@ func Remap(anchor store.LineAnchor, newLines []string) (store.LineAnchor, bool) 
 
 // scoreCandidate returns the number of context lines (before and after)
 // that match at the given 0-based candidate position in newLines.
-func scoreCandidate(anchor store.LineAnchor, lines []string, pos, anchorLen int) int {
+func scoreCandidate(anchor store.LineAnchor, lines []string, pos, anchorLen int, same func(old, cur string) bool) int {
 	score := 0
 
 	// ContextBefore: lines immediately above pos
 	nb := len(anchor.ContextBefore)
 	for j, ctx := range anchor.ContextBefore {
 		lineIdx := pos - nb + j
-		if lineIdx >= 0 && lineIdx < len(lines) && normalize(lines[lineIdx]) == normalize(ctx) {
+		if lineIdx >= 0 && lineIdx < len(lines) && same(ctx, lines[lineIdx]) {
 			score++
 		}
 	}
@@ -83,7 +90,7 @@ func scoreCandidate(anchor store.LineAnchor, lines []string, pos, anchorLen int)
 	afterStart := pos + anchorLen
 	for j, ctx := range anchor.ContextAfter {
 		lineIdx := afterStart + j
-		if lineIdx < len(lines) && normalize(lines[lineIdx]) == normalize(ctx) {
+		if lineIdx < len(lines) && same(ctx, lines[lineIdx]) {
 			score++
 		}
 	}
