@@ -288,7 +288,7 @@ func TestListThreadsFilters(t *testing.T) {
 	}
 }
 
-func TestListActiveLineThreadsForPath(t *testing.T) {
+func TestListActiveThreadsForPath(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 	repo := testRepo(t, s)
@@ -306,7 +306,8 @@ func TestListActiveLineThreadsForPath(t *testing.T) {
 		t.Fatalf("SetAnchorStatus: %v", err)
 	}
 
-	// Active region (non-line) thread on main.go — must NOT be returned.
+	// Active region thread on main.go — returned too: the watcher orphans
+	// non-text anchors when the file changes.
 	regionThread, _, err := s.CreateThread(ctx, CreateThreadParams{
 		SessionID:      sess.ID,
 		FileSnapshotID: snapGo.ID,
@@ -318,7 +319,6 @@ func TestListActiveLineThreadsForPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateThread region: %v", err)
 	}
-	_ = regionThread
 
 	// Active line thread on a different file — must NOT be returned.
 	otherSnap := testSnapshot(t, s, repo.ID, "other.go")
@@ -327,15 +327,16 @@ func TestListActiveLineThreadsForPath(t *testing.T) {
 	// Active line thread on a png — verifies path filter works.
 	testThread(t, s, sess.ID, snapPng.ID)
 
-	got, err := s.ListActiveLineThreadsForPath(ctx, repo.ID, "main.go")
+	got, err := s.ListActiveThreadsForPath(ctx, repo.ID, "main.go")
 	if err != nil {
-		t.Fatalf("ListActiveLineThreadsForPath: %v", err)
+		t.Fatalf("ListActiveThreadsForPath: %v", err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("got %d threads, want 1", len(got))
+	if len(got) != 2 {
+		t.Fatalf("got %d threads, want 2 (line + region)", len(got))
 	}
-	if got[0].ID != lineActive.ID {
-		t.Errorf("got thread %s, want %s", got[0].ID, lineActive.ID)
+	ids := map[string]bool{got[0].ID: true, got[1].ID: true}
+	if !ids[lineActive.ID] || !ids[regionThread.ID] {
+		t.Errorf("got threads %s, %s; want %s and %s", got[0].ID, got[1].ID, lineActive.ID, regionThread.ID)
 	}
 
 	// Cross-repo isolation: same path in a different repo must return nothing.
@@ -343,9 +344,9 @@ func TestListActiveLineThreadsForPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateRepository: %v", err)
 	}
-	cross, err := s.ListActiveLineThreadsForPath(ctx, repo2.ID, "main.go")
+	cross, err := s.ListActiveThreadsForPath(ctx, repo2.ID, "main.go")
 	if err != nil {
-		t.Fatalf("ListActiveLineThreadsForPath cross-repo: %v", err)
+		t.Fatalf("ListActiveThreadsForPath cross-repo: %v", err)
 	}
 	if len(cross) != 0 {
 		t.Errorf("cross-repo returned %d threads, want 0", len(cross))

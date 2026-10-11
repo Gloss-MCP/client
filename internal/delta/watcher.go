@@ -20,7 +20,7 @@ import (
 // watchStore is the store surface the watcher needs. Using an interface
 // keeps the delta package testable without a real SQLite store.
 type watchStore interface {
-	ListActiveLineThreadsForPath(ctx context.Context, repoID, path string) ([]*store.Thread, error)
+	ListActiveThreadsForPath(ctx context.Context, repoID, path string) ([]*store.Thread, error)
 	UpdateThreadAnchor(ctx context.Context, id string, anchor store.Anchor) (*store.Thread, error)
 	SetAnchorStatus(ctx context.Context, id string, status store.AnchorStatus) (*store.Thread, error)
 	GetFileSnapshot(ctx context.Context, id string) (*store.FileSnapshot, error)
@@ -192,7 +192,7 @@ func (w *Watcher) remapFile(ctx context.Context, relPath string) {
 	newLines := SplitLines(content)
 	newHash := contentHash(content)
 
-	threads, err := w.st.ListActiveLineThreadsForPath(ctx, w.repoID, relPath)
+	threads, err := w.st.ListActiveThreadsForPath(ctx, w.repoID, relPath)
 	if err != nil || len(threads) == 0 {
 		return
 	}
@@ -221,7 +221,10 @@ func (w *Watcher) remapFile(ctx context.Context, relPath string) {
 		case store.CellAnchor:
 			remapped = w.remapCell(ctx, relPath, gitSHA, a, content)
 		default:
-			continue
+			// Region, time and region-time anchors address positions in
+			// binary media, which can't be re-located after an edit: the
+			// content changed (hash check above), so the thread orphans.
+			remapped = nil
 		}
 
 		if remapped != nil {
@@ -261,9 +264,9 @@ func (w *Watcher) remapCell(ctx context.Context, relPath, gitSHA string, ca stor
 	return nil
 }
 
-// orphanFile marks all active line-anchored threads for relPath as orphaned.
+// orphanFile marks all active threads for relPath as orphaned.
 func (w *Watcher) orphanFile(ctx context.Context, relPath string) {
-	threads, err := w.st.ListActiveLineThreadsForPath(ctx, w.repoID, relPath)
+	threads, err := w.st.ListActiveThreadsForPath(ctx, w.repoID, relPath)
 	if err != nil {
 		return
 	}
