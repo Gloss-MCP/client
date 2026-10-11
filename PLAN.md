@@ -167,7 +167,7 @@ fallback. Heaviest unit-test milestone.
 *Exit: edit a file mid-review; threads follow or orphan visibly — never
 vanish.*
 
-### 8. Text-format plugins
+### 8. Text-format plugins — complete
 
 Code (chroma highlighting), markdown (goldmark, rendered + source
 views), json, csv (cell anchors). The `/new-plugin` command is extracted
@@ -292,6 +292,26 @@ concern.
   covering all 13 tools. Dogfooding begins: `.mcp.json` at the repo root
   registers the local Gloss server at `http://localhost:4747/mcp` so Claude
   Code in this repo can read threads and reply through the UI live.
+- 2026-10-11: Milestone 8 complete — code (chroma), markdown (goldmark),
+  json and csv plugins behind `NewDefaultRegistry()` (markdown, json, csv,
+  code, plaintext; 1 MB cap falls back to plaintext). Code highlighting
+  tokenises the whole file and formats per line so multi-line tokens keep
+  `data-line` numbering. Markdown's Rendered view stamps `data-line` /
+  `data-line-end` on blocks and list items from the goldmark AST, so
+  rendered selections anchor to source lines. csv uses a new `cell` anchor
+  (`store.CellAnchor`: the record's physical line span, a 1-based column,
+  and the column header); migration 0002 widens the `anchor_type` CHECK by
+  rebuilding `threads` and `comments` together (dropping `threads` alone
+  cascade-deletes comments under enforced foreign keys). `internal/delta`
+  remaps cell anchors by row context — falling back to a per-field
+  comparison when columns were added or removed — then re-resolves the
+  column by header; a vanished header orphans the thread. The annotation
+  pane gained view tabs for multi-view plugins. `/new-plugin` extracted.
+  Also fixed pre-existing breakage found on the way: M7's connector
+  snapshot tests (fixture gained `sample.go`) and its Playwright specs
+  (config created a different fixture dir per worker; specs assumed a
+  live-refreshing UI). Known gaps: cell threads highlight their row in the
+  gutter rather than the cell; csv is comma-only (`.tsv` renders as text).
 - 2026-07-18: Milestone 7 complete — `internal/delta` package lands with
   `ExtractContext`, `Remap` (fuzzy context-line scoring, re-extracts fresh
   context on success), `RemapViaGitDiff` (unified-diff hunk parser as

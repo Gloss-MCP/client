@@ -75,10 +75,30 @@ Project-specific overrides and additions:
   `clientInfo.name` from the MCP initialize handshake. `.mcp.json` at the
   repo root registers `http://localhost:4747/mcp` so Claude Code in this
   repo can read and reply through the UI live (dogfooding from milestone 6).
+- **Format plugins live in `internal/plugins/`** (code via chroma,
+  markdown via goldmark, json, csv; plaintext is the catch-all).
+  `NewDefaultRegistry()` order is precedence — specific formats before
+  `Code`, whose lexers accept almost any extension — and format plugins
+  fall back to plaintext above 1 MB. Line-addressable output follows the
+  shared `[data-line]` convention (`lines.go`); multi-line elements add
+  `data-line-end`, csv cells add `data-col`. Anchors: text formats use
+  `line`, csv uses `cell` (row = the record's physical line span, column
+  re-resolved by header text on remap). Adding a plugin: run
+  `/new-plugin` (`.claude/commands/new-plugin.md`). Per-format fixtures
+  live in `testdata/plugins/`, not `testdata/connector/fixture`, whose
+  file list connector tests pin.
+- **Schema changes are migrations in `internal/store/migrations/`.**
+  Widening a CHECK means rebuilding the table; rebuild `threads` and
+  `comments` together or dropping `threads` cascade-deletes every comment
+  (see `0002_cell_anchor.sql` and its test).
 - **Playwright e2e is the one sanctioned Node dependency, scoped to
   `e2e/`.** Its own `package.json`/`package-lock.json`, not part of the
   shipped binary's build. `make e2e` runs `npm ci` + `npx playwright
-  test` there.
+  test` there. The config is evaluated in every worker, so the fixture
+  dir is a deterministic path created only by the main process. The UI
+  does not live-refresh: specs that edit files on disk reload the page
+  until the watcher's result appears. In cloud sandboxes set
+  `PW_EXECUTABLE_PATH` to the pre-installed Chromium (see the config).
 - **The Makefile is the single entry point.** `make run / test / lint /
   e2e / build / assets`. CI and agents use only these targets. Always
   invoke Makefile targets directly — never construct the underlying
