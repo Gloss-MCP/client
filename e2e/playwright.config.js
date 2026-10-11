@@ -1,5 +1,5 @@
 import { defineConfig } from '@playwright/test';
-import { mkdtempSync, cpSync } from 'node:fs';
+import { rmSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -11,8 +11,18 @@ import path from 'node:path';
 // land in a tracked directory.
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixtureSrc = path.resolve(here, '../testdata/connector/fixture');
-const fixtureDir = mkdtempSync(path.join(tmpdir(), 'gloss-e2e-'));
-cpSync(fixtureSrc, fixtureDir, { recursive: true });
+
+// Playwright evaluates this file in the main process and again in every
+// worker, and environment changes made here do not reach the workers. So
+// the directory must be a deterministic path, created only by the main
+// process (workers carry TEST_WORKER_INDEX): a random mkdtemp per
+// evaluation would leave the tests writing to a copy the running server
+// is not watching.
+const fixtureDir = path.join(tmpdir(), 'gloss-e2e-fixture');
+if (process.env.TEST_WORKER_INDEX === undefined) {
+  rmSync(fixtureDir, { recursive: true, force: true });
+  cpSync(fixtureSrc, fixtureDir, { recursive: true });
+}
 
 const PORT = 4747;
 

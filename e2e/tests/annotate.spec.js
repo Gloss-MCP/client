@@ -20,7 +20,9 @@ test('full annotation loop: session, thread, reply, resolve, reopen', async ({ p
   await page.getByRole('link', { name: 'README.md' }).click();
   await expect(page).toHaveURL(/\/s\/[^/]+\/files\/README\.md$/);
 
-  await page.locator('[data-line="1"]').click();
+  // README.md is a markdown file: the Rendered view (first in the DOM) and
+  // the Source view both carry data-line="1"; annotate via Rendered.
+  await page.locator('[data-line="1"]').first().click();
   await expect(page.getByPlaceholder('Add a comment...')).toBeVisible();
   await page.getByPlaceholder('Add a comment...').fill('What is this file for?');
   await page.getByRole('button', { name: 'Comment', exact: true }).click();
@@ -28,7 +30,7 @@ test('full annotation loop: session, thread, reply, resolve, reopen', async ({ p
   // The new thread and its root comment show in the thread panel, and
   // the annotated line is highlighted in the gutter.
   await expect(page.getByText('What is this file for?')).toBeVisible();
-  await expect(page.locator('[data-line="1"]')).toHaveClass(/bg-amber-50/);
+  await expect(page.locator('[data-line="1"]').first()).toHaveClass(/bg-amber-50/);
 
   // Reply to the thread. Scope to the thread-level reply form so this
   // doesn't collide with each comment's own "Reply" toggle button.
