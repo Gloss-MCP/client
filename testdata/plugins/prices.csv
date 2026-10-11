@@ -1,0 +1,6 @@
+id,name,price,notes
+1,apple,0.50,fresh
+2,banana,0.25,"two-line
+note"
+3,cherry,4.00,
+4,"date, medjool",3.00,<b>bold</b>
