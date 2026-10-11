@@ -41,6 +41,7 @@ func TestCorpusRendersThroughDefaultRegistry(t *testing.T) {
 		{"ragged.csv", "csv", []string{"Table", "Source"}, []string{`data-col="4"`}, nil},
 		{"empty.py", "code", []string{""}, nil, []string{`data-line=`}},
 		{"pixel.png", "image", []string{""}, []string{`data-region-surface`, `src="/raw/pixel.png"`}, []string{`data-line=`}},
+		{"tone.wav", "audio", []string{""}, []string{`data-time-surface`, `src="/raw/tone.wav"`}, []string{`data-line=`, `data-region-surface`}},
 		{"logo.svg", "image", []string{""}, []string{`data-region-surface`, `src="/raw/logo.svg"`}, []string{"<script", "<svg", `data-line=`}},
 	}
 	for _, tt := range tests {

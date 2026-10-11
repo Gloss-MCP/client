@@ -107,3 +107,6 @@
 .gloss-mark-resolved { border-style: dashed; border-color: #9ca3af; background: rgb(156 163 175 / 0.12); color: #4b5563; }
 .gloss-region-sel { position: absolute; border: 2px solid #2563eb; background: rgb(59 130 246 / 0.2); }
 .gloss-thread-flash { outline: 2px solid #2563eb; }
+.gloss-player { width: 100%; max-width: 32rem; }
+.gloss-time-mark { border: 1px solid #d97706; background: rgb(251 191 36 / 0.2); color: #92400e; font-size: 0.75rem; border-radius: 9999px; padding: 1px 8px; }
+.gloss-time-mark-resolved { border-style: dashed; border-color: #9ca3af; background: transparent; color: #4b5563; }

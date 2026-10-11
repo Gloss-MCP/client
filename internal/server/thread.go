@@ -47,18 +47,22 @@ type sessionMainData struct {
 	ReturnTo     string
 }
 
-// mediaMark is a region thread as the UI draws it over a media surface.
-// Geometry is fractions (0-1) of the displayed asset. N is the thread's
+// mediaMark is a region, time or region-time thread as the UI draws it
+// over a media surface. Geometry is fractions (0-1) of the displayed
+// asset; times are seconds. N is the thread's
 // 1-based position in the panel, shown on the box so the two can be
 // matched by eye.
 type mediaMark struct {
 	ID     string  `json:"id"`
 	N      int     `json:"n"`
 	Status string  `json:"status"`
+	Type   string  `json:"type"` // region, time or region_time
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
 	Width  float64 `json:"width"`
 	Height float64 `json:"height"`
+	Start  float64 `json:"start"` // seconds; time and region_time
+	End    float64 `json:"end"`
 }
 
 // threadViewData is one thread rendered in the thread panel, with its
@@ -200,8 +204,13 @@ func (s *Server) loadThreadViews(ctx context.Context, sessionID string, threads 
 			}
 		case store.RegionAnchor:
 			marks = append(marks, mediaMark{
-				ID: t.ID, N: len(views), Status: string(t.AnchorStatus),
+				ID: t.ID, N: len(views), Status: string(t.AnchorStatus), Type: string(a.AnchorType()),
 				X: a.X, Y: a.Y, Width: a.Width, Height: a.Height,
+			})
+		case store.TimeAnchor:
+			marks = append(marks, mediaMark{
+				ID: t.ID, N: len(views), Status: string(t.AnchorStatus), Type: string(a.AnchorType()),
+				Start: a.StartTime, End: a.EndTime,
 			})
 		}
 	}
@@ -227,10 +236,11 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 	path := r.FormValue("file_path")
 	body := strings.TrimSpace(r.FormValue("body"))
 
-	// A region selection on a media surface submits x/y/width/height
-	// (fractions of the asset) instead of a line range.
-	if r.FormValue("x") != "" {
-		s.createRegionThread(w, r, sessionID, path, body)
+	// A selection on a media surface submits x/y/width/height (fractions
+	// of the asset) and/or start_time/end_time (seconds) instead of a
+	// line range.
+	if r.FormValue("x") != "" || r.FormValue("start_time") != "" {
+		s.createMediaThread(w, r, sessionID, path, body)
 		return
 	}
 
@@ -304,21 +314,43 @@ func (s *Server) storeThread(w http.ResponseWriter, r *http.Request, sessionID, 
 	redirectBack(w, r, returnTo(r))
 }
 
-// createRegionThread creates a thread anchored to a region of an image.
-// Geometry outside the asset (or non-numeric) is a 400, not a clamp: the
-// UI already clamps, so bad values mean a broken or hostile client.
-func (s *Server) createRegionThread(w http.ResponseWriter, r *http.Request, sessionID, path, body string) {
-	var v [4]float64
-	for i, name := range []string{"x", "y", "width", "height"} {
+// createMediaThread creates a thread anchored to a media position: a
+// region of an image (x/y/width/height), a time range of audio
+// (start_time/end_time), or a region at a time range of video (both).
+// Geometry outside the asset, a non-numeric field, or an anchor kind the
+// file's media type doesn't support is a 400, not a clamp: the UI already
+// clamps, so bad values mean a broken or hostile client.
+func (s *Server) createMediaThread(w http.ResponseWriter, r *http.Request, sessionID, path, body string) {
+	num := func(name string) (float64, bool) {
 		f, err := strconv.ParseFloat(r.FormValue(name), 64)
-		if err != nil {
-			http.Error(w, "invalid thread parameters", http.StatusBadRequest)
-			return
-		}
-		v[i] = f
+		return f, err == nil
 	}
-	anchor := store.RegionAnchor{X: v[0], Y: v[1], Width: v[2], Height: v[3]}
-	if path == "" || body == "" || plugins.MediaKindOf(path) != plugins.MediaImage || store.ValidateAnchor(anchor) != nil {
+	var anchor store.Anchor
+	var kind plugins.MediaKind
+	hasRegion, hasTime := r.FormValue("x") != "", r.FormValue("start_time") != ""
+	var v [6]float64
+	ok := true
+	for i, name := range []string{"x", "y", "width", "height", "start_time", "end_time"} {
+		if (i < 4 && !hasRegion) || (i >= 4 && !hasTime) {
+			continue
+		}
+		var good bool
+		if v[i], good = num(name); !good {
+			ok = false
+		}
+	}
+	switch {
+	case hasRegion && hasTime:
+		anchor = store.RegionTimeAnchor{X: v[0], Y: v[1], Width: v[2], Height: v[3], StartTime: v[4], EndTime: v[5]}
+		kind = plugins.MediaVideo
+	case hasRegion:
+		anchor = store.RegionAnchor{X: v[0], Y: v[1], Width: v[2], Height: v[3]}
+		kind = plugins.MediaImage
+	default:
+		anchor = store.TimeAnchor{StartTime: v[4], EndTime: v[5]}
+		kind = plugins.MediaAudio
+	}
+	if !ok || path == "" || body == "" || plugins.MediaKindOf(path) != kind || store.ValidateAnchor(anchor) != nil {
 		http.Error(w, "invalid thread parameters", http.StatusBadRequest)
 		return
 	}

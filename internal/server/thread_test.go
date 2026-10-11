@@ -273,8 +273,10 @@ func newImageSession(t *testing.T) (*Server, *httptest.Server, string) {
 	t.Helper()
 	srv, root := testServer(t)
 	srv.cfg.Registry = plugins.NewDefaultRegistry()
-	if err := os.WriteFile(filepath.Join(root, "shot.png"), []byte("png-bytes"), 0o644); err != nil {
-		t.Fatal(err)
+	for name, content := range map[string]string{"shot.png": "png-bytes", "talk.mp3": "mp3-bytes", "demo.mp4": "mp4-bytes"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	sess, err := srv.cfg.Store.CreateSession(context.Background(), srv.cfg.RepoID, "review", "", testAuthor)
 	if err != nil {
@@ -387,5 +389,53 @@ func TestLoadThreadViewsReturnsRegionMarks(t *testing.T) {
 	}
 	if marks[0].N != 1 || marks[1].N != 2 || marks[1].X != 0.5 || marks[0].Status != "active" {
 		t.Errorf("marks = %+v", marks)
+	}
+}
+
+func TestCreateTimeThreadStoresTimeAnchor(t *testing.T) {
+	srv, ts, sessID := newImageSession(t)
+	resp, err := http.PostForm(ts.URL+"/s/"+sessID+"/threads", url.Values{
+		"file_path": {"talk.mp3"}, "start_time": {"1.5"}, "end_time": {"4.25"},
+		"body": {"cut this ramble"}, "return_to": {ts.URL + "/s/" + sessID + "/files/talk.mp3"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	page := readBody(t, resp)
+	for _, want := range []string{"cut this ramble", "1.5s-4.25s", "glossTimeView(", "data-time-surface", "&#34;type&#34;:&#34;time&#34;"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page missing %q", want)
+		}
+	}
+	threads, _ := srv.cfg.Store.ListThreads(context.Background(), sessID, store.ListThreadsFilter{})
+	if len(threads) != 1 || threads[0].Anchor != (store.TimeAnchor{StartTime: 1.5, EndTime: 4.25}) {
+		t.Fatalf("threads = %+v", threads)
+	}
+}
+
+func TestCreateMediaThreadRejectsMismatchedOrBadAnchors(t *testing.T) {
+	_, ts, sessID := newImageSession(t)
+	for name, form := range map[string]url.Values{
+		"time on an image":     {"file_path": {"shot.png"}, "start_time": {"1"}, "end_time": {"2"}},
+		"region on audio":      {"file_path": {"talk.mp3"}, "x": {"0.1"}, "y": {"0.1"}, "width": {"0.2"}, "height": {"0.2"}},
+		"region_time on audio": {"file_path": {"talk.mp3"}, "x": {"0.1"}, "y": {"0.1"}, "width": {"0.2"}, "height": {"0.2"}, "start_time": {"1"}, "end_time": {"2"}},
+		"time on video":        {"file_path": {"demo.mp4"}, "start_time": {"1"}, "end_time": {"2"}},
+		"reversed":             {"file_path": {"talk.mp3"}, "start_time": {"5"}, "end_time": {"2"}},
+		"negative":             {"file_path": {"talk.mp3"}, "start_time": {"-1"}, "end_time": {"2"}},
+		"missing end":          {"file_path": {"talk.mp3"}, "start_time": {"1"}},
+		"not a number":         {"file_path": {"talk.mp3"}, "start_time": {"abc"}, "end_time": {"2"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			form.Set("body", "x")
+			resp, err := http.PostForm(ts.URL+"/s/"+sessID+"/threads", form)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = resp.Body.Close() }()
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Errorf("status = %d, want 400", resp.StatusCode)
+			}
+		})
 	}
 }
