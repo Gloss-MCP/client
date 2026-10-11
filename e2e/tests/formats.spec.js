@@ -13,7 +13,7 @@ const live = (name) => path.join(process.env.GLOSS_FIXTURE_DIR ?? path.join(proc
 
 // Restore the corpus files these tests modify.
 test.beforeEach(() => {
-  for (const name of ['doc.md', 'prices.csv']) {
+  for (const name of ['doc.md', 'prices.csv', 'pixel.png']) {
     writeFileSync(live(name), readFileSync(corpus(name)));
   }
 });
@@ -124,4 +124,97 @@ test('csv: quoted-newline record is one selectable row', async ({ page }) => {
   await expect(row).toHaveAttribute('data-line-end', '4');
   await row.locator('td[data-col="4"]').click();
   await expect(page.getByText('Comment on line 3-4, column 4')).toBeVisible();
+});
+
+// ---- Milestone 9: media ----
+
+// mcpCall speaks streamable-HTTP MCP to the running server with
+// Playwright's request client: initialize, then one tools/call.
+async function mcpCall(request, tool, args) {
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
+  const parse = async (resp) => {
+    expect(resp.ok(), await resp.text()).toBeTruthy();
+    const text = await resp.text();
+    const data = text.split('\n').filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trim()).pop();
+    return JSON.parse(data ?? text);
+  };
+  const init = await request.post('/mcp', {
+    headers,
+    data: { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e-agent', version: '0' } } },
+  });
+  const sid = init.headers()['mcp-session-id'];
+  const sessHeaders = sid ? { ...headers, 'Mcp-Session-Id': sid } : headers;
+  await request.post('/mcp', { headers: sessHeaders, data: { jsonrpc: '2.0', method: 'notifications/initialized' } });
+  const res = await parse(await request.post('/mcp', {
+    headers: sessHeaders,
+    data: { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: tool, arguments: args } },
+  }));
+  expect(res.result?.isError, JSON.stringify(res)).toBeFalsy();
+  return JSON.parse(res.result.content[0].text);
+}
+
+test('image: region anchors round-trip through UI, store and MCP, and orphan when the file changes', async ({ page, request }) => {
+  await openInNewSession(page, 'Image format', 'pixel.png');
+  const sessionID = page.url().match(/\/s\/([^/]+)\//)[1];
+
+  const img = page.locator('[data-region-surface] img');
+  await expect(img).toBeVisible();
+  await expect.poll(() => img.evaluate((el) => el.naturalWidth)).toBe(240); // served by /raw
+
+  // Draw a region from (25%,25%) to (75%,50%) of the image.
+  const box = await img.boundingBox();
+  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.25);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.4, { steps: 4 });
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.5, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.getByText(/Comment on region 25%,25% 50%×25%/)).toBeVisible();
+  await comment(page, 'what is this patch?');
+
+  // UI -> store: the thread shows its region label and an overlay box.
+  await expect(page.getByText(/^region 25%,25% 50%×25%$/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Thread 1' })).toBeVisible();
+
+  // Reply through the UI.
+  await page.getByPlaceholder('Reply...').fill('looks like a checkerboard');
+  await page.locator('form', { has: page.getByPlaceholder('Reply...') }).getByRole('button', { name: 'Reply', exact: true }).click();
+  await expect(page.getByText('looks like a checkerboard')).toBeVisible();
+
+  // MCP -> store -> UI: an agent's region thread appears as a second box.
+  const created = await mcpCall(request, 'create_thread', {
+    session_id: sessionID,
+    file_path: 'formats/pixel.png',
+    anchor: { type: 'region', x: 0.8, y: 0.1, width: 0.15, height: 0.2 },
+    body: 'ai: is this corner intended?',
+  });
+  expect(created.anchor_type ?? created.anchor?.x).toBeTruthy();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Thread 2' })).toBeVisible();
+  await expect(page.getByText('ai: is this corner intended?')).toBeVisible();
+
+  // Store -> MCP: the UI-created thread reads back with its geometry.
+  const listed = await mcpCall(request, 'list_threads', { session_id: sessionID, file_path: 'formats/pixel.png' });
+  const regions = listed.filter((t) => t.anchor.x !== undefined);
+  expect(regions).toHaveLength(2);
+  expect(regions[0].anchor).toMatchObject({ x: 0.25, y: 0.25, width: 0.5, height: 0.25 });
+
+  // The file changes: positions on the old pixels mean nothing, so both
+  // threads orphan and no longer draw boxes.
+  const edited = Buffer.from(readFileSync(corpus('pixel.png')));
+  edited[edited.length - 20] ^= 0xff;
+  writeFileSync(live('pixel.png'), edited);
+  await expectAfterReload(page, async () => {
+    await expect(page.getByText('orphaned', { exact: true })).toHaveCount(2, { timeout: 500 });
+  });
+  await expect(page.locator('.gloss-mark')).toHaveCount(0);
+});
+
+test('image: a bare click does not start a selection', async ({ page }) => {
+  // A click without dragging is below the minimum size: no composer.
+  await openInNewSession(page, 'Image click', 'pixel.png');
+  const img = page.locator('[data-region-surface] img');
+  await expect(img).toBeVisible();
+  const box = await img.boundingBox();
+  await page.mouse.click(box.x + 20, box.y + 20);
+  await expect(page.getByPlaceholder('Add a comment...')).toBeHidden();
 });
