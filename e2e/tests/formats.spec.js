@@ -13,7 +13,7 @@ const live = (name) => path.join(process.env.GLOSS_FIXTURE_DIR ?? path.join(proc
 
 // Restore the corpus files these tests modify.
 test.beforeEach(() => {
-  for (const name of ['doc.md', 'prices.csv', 'pixel.png']) {
+  for (const name of ['doc.md', 'prices.csv', 'pixel.png', 'tone.wav', 'clip.webm']) {
     writeFileSync(live(name), readFileSync(corpus(name)));
   }
 });
@@ -217,4 +217,99 @@ test('image: a bare click does not start a selection', async ({ page }) => {
   const box = await img.boundingBox();
   await page.mouse.click(box.x + 20, box.y + 20);
   await expect(page.getByPlaceholder('Add a comment...')).toBeHidden();
+});
+
+test('audio: time anchors round-trip through UI, store and MCP, and orphan when the file changes', async ({ page, request }) => {
+  await openInNewSession(page, 'Audio format', 'tone.wav');
+  const sessionID = page.url().match(/\/s\/([^/]+)\//)[1];
+  const audio = page.locator('[data-time-surface] audio');
+  await expect(audio).toBeAttached();
+  await expect.poll(() => audio.evaluate((a) => a.duration)).toBeGreaterThan(1.9); // served by /raw
+
+  // Mark 0.5s .. 1.5s from the playhead.
+  await audio.evaluate((a) => { a.currentTime = 0.5; });
+  await page.getByRole('button', { name: 'Mark start', exact: true }).click();
+  await audio.evaluate((a) => { a.currentTime = 1.5; });
+  await page.getByRole('button', { name: 'Mark end', exact: true }).click();
+  await expect(page.getByText('Comment on 0:00.5\u20130:01.5')).toBeVisible();
+  await comment(page, 'the tone wobbles here');
+
+  await expect(page.getByText('0.5s-1.5s', { exact: true })).toBeVisible();
+  // The chip seeks the player back to the range start.
+  await audio.evaluate((a) => { a.currentTime = 1.9; });
+  await page.getByRole('button', { name: 'Thread 1', exact: true }).click();
+  await expect.poll(() => audio.evaluate((a) => a.currentTime)).toBeCloseTo(0.5, 1);
+
+  // MCP -> store -> UI.
+  await mcpCall(request, 'create_thread', {
+    session_id: sessionID, file_path: 'formats/tone.wav',
+    anchor: { type: 'time', start_time: 1, end_time: 1.25 }, body: 'ai: is this a click?',
+  });
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Thread 2', exact: true })).toBeVisible();
+
+  // Store -> MCP.
+  const listed = await mcpCall(request, 'list_threads', { session_id: sessionID, file_path: 'formats/tone.wav' });
+  expect(listed).toHaveLength(2);
+  expect(listed[0].anchor).toMatchObject({ start_time: 0.5, end_time: 1.5 });
+
+  const edited = Buffer.from(readFileSync(corpus('tone.wav')));
+  edited[edited.length - 10] ^= 0x7f;
+  writeFileSync(live('tone.wav'), edited);
+  await expectAfterReload(page, async () => {
+    await expect(page.getByText('orphaned', { exact: true })).toHaveCount(2, { timeout: 500 });
+  });
+  await expect(page.locator('.gloss-time-mark')).toHaveCount(0);
+});
+
+test('video: region-time anchors round-trip through UI, store and MCP, and orphan when the file changes', async ({ page, request }) => {
+  await openInNewSession(page, 'Video format', 'clip.webm');
+  const sessionID = page.url().match(/\/s\/([^/]+)\//)[1];
+  const video = page.locator('[data-region-surface] video');
+  await expect(video).toBeVisible();
+  await expect.poll(() => video.evaluate((v) => v.videoWidth)).toBe(160); // served by /raw
+
+  // Pause on t=1s, draw a region, extend the range to 1.5s.
+  await video.evaluate((v) => { v.currentTime = 1; });
+  await page.getByRole('button', { name: 'Draw region', exact: true }).click();
+  const box = await video.boundingBox();
+  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.35, { steps: 4 });
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.5, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.getByText(/Comment on region 25%,20% 50%×30% at 0:01\.0/)).toBeVisible();
+  await video.evaluate((v) => { v.currentTime = 1.5; });
+  await page.getByRole('button', { name: 'Mark end', exact: true }).click();
+  await expect(page.getByText(/at 0:01\.0\u20130:01\.5/)).toBeVisible();
+  await comment(page, 'the logo flickers');
+
+  await expect(page.getByText(/^region 25%,20% 50%×30% at 1s-1\.5s$/)).toBeVisible();
+  // The box shows only while the playhead is inside the range.
+  await video.evaluate((v) => { v.currentTime = 0; });
+  await expect(page.locator('.gloss-mark')).toHaveCount(0);
+  await page.getByRole('button', { name: /^Thread 1 at/ }).click();
+  await expect(page.locator('.gloss-mark')).toHaveCount(1);
+
+  // MCP -> store -> UI.
+  await mcpCall(request, 'create_thread', {
+    session_id: sessionID, file_path: 'formats/clip.webm',
+    anchor: { type: 'region_time', x: 0.6, y: 0.6, width: 0.2, height: 0.2, start_time: 0.2, end_time: 0.4 },
+    body: 'ai: what is this corner?',
+  });
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Thread 2 at/ })).toBeVisible();
+
+  // Store -> MCP.
+  const listed = await mcpCall(request, 'list_threads', { session_id: sessionID, file_path: 'formats/clip.webm' });
+  expect(listed).toHaveLength(2);
+  expect(listed[0].anchor).toMatchObject({ x: 0.25, y: 0.2, width: 0.5, height: 0.3, start_time: 1, end_time: 1.5 });
+
+  const edited = Buffer.from(readFileSync(corpus('clip.webm')));
+  edited[edited.length - 30] ^= 0x55;
+  writeFileSync(live('clip.webm'), edited);
+  await expectAfterReload(page, async () => {
+    await expect(page.getByText('orphaned', { exact: true })).toHaveCount(2, { timeout: 500 });
+  });
+  await expect(page.locator('.gloss-time-mark')).toHaveCount(0);
 });
