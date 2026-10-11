@@ -31,7 +31,7 @@ GO    := $(_DOCKER_RUN) go
 GOFMT := $(_DOCKER_RUN) gofmt
 endif
 
-.PHONY: build test lint e2e run clean assets
+.PHONY: build test lint e2e run clean assets site
 
 # assets compiles the vendored HTMX/Alpine.js + Tailwind CSS pipeline.
 # The Tailwind standalone CLI is downloaded on first use and cached in
@@ -71,6 +71,13 @@ assets:
 	@if [ -x "$(TAILWIND_BIN)" ]; then \
 		$(TAILWIND_BIN) -i $(TAILWIND_CSS_IN) -o $(TAILWIND_CSS_OUT) --minify; \
 	fi
+
+# site compiles the static docs site's CSS (site/css/site.css, gitignored)
+# with the same standalone Tailwind CLI. Unlike assets, it fails when the
+# CLI is unavailable: there is no committed fallback to serve.
+site: assets
+	@test -x "$(TAILWIND_BIN)" || { echo "site: Tailwind CLI unavailable"; exit 1; }
+	$(TAILWIND_BIN) -i site/css/input.css -o site/css/site.css --minify
 
 build: assets
 	$(GO) build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/gloss
