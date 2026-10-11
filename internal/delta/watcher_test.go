@@ -26,15 +26,10 @@ func newFakeStore() *fakeStore {
 func (f *fakeStore) addThread(t *store.Thread)         { f.threads[t.ID] = t }
 func (f *fakeStore) addSnapshot(s *store.FileSnapshot) { f.snapshots[s.ID] = s }
 
-func (f *fakeStore) ListActiveLineThreadsForPath(_ context.Context, _, path string) ([]*store.Thread, error) {
+func (f *fakeStore) ListActiveThreadsForPath(_ context.Context, _, path string) ([]*store.Thread, error) {
 	var out []*store.Thread
 	for _, t := range f.threads {
 		if t.AnchorStatus != store.AnchorActive {
-			continue
-		}
-		switch t.Anchor.(type) {
-		case store.LineAnchor, store.CellAnchor:
-		default:
 			continue
 		}
 		if snap, ok := f.snapshots[t.FileSnapshotID]; ok && snap.Path == path {
@@ -301,5 +296,74 @@ func TestWatcherOrphansCellAnchorWhenColumnRemoved(t *testing.T) {
 	<-done
 	if fs.threads["t1"].AnchorStatus != store.AnchorOrphaned {
 		t.Errorf("status = %s, want orphaned (price column removed)", fs.threads["t1"].AnchorStatus)
+	}
+}
+
+// TestWatcherOrphansMediaAnchorsOnContentChange: region/time anchors
+// can't be re-located in a rewritten binary file, so any content change
+// orphans them, while a write that leaves the content as anchored (same
+// hash) keeps them active.
+func TestWatcherOrphansMediaAnchorsOnContentChange(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "shot.png")
+	original := []byte("\x89PNG-original")
+	if err := os.WriteFile(path, original, 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	fs := newFakeStore()
+	fs.addSnapshot(&store.FileSnapshot{ID: "s1", RepoID: "r1", Path: "shot.png", ContentHash: contentHash(original)})
+	fs.addThread(&store.Thread{ID: "region", FileSnapshotID: "s1", AnchorStatus: store.AnchorActive,
+		Anchor: store.RegionAnchor{X: 0.1, Y: 0.1, Width: 0.2, Height: 0.2}})
+	fs.addThread(&store.Thread{ID: "time", FileSnapshotID: "s1", AnchorStatus: store.AnchorActive,
+		Anchor: store.TimeAnchor{StartTime: 1, EndTime: 2}})
+	fs.addThread(&store.Thread{ID: "rt", FileSnapshotID: "s1", AnchorStatus: store.AnchorActive,
+		Anchor: store.RegionTimeAnchor{Width: 0.5, Height: 0.5, StartTime: 1, EndTime: 2}})
+
+	w, err := New(dir, "r1", store.ConnectorLocal, fs)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ready := make(chan struct{})
+	done := make(chan error, 1)
+	go func() { done <- w.Run(ctx, ready) }()
+	select {
+	case <-ready:
+	case <-time.After(3 * time.Second):
+		t.Fatal("watcher did not become ready in time")
+	}
+
+	// Rewriting identical bytes changes nothing.
+	if err := os.WriteFile(path, original, 0o644); err != nil {
+		t.Fatalf("rewrite: %v", err)
+	}
+	time.Sleep(debounceDelay + 300*time.Millisecond)
+	for id, th := range fs.threads {
+		if th.AnchorStatus != store.AnchorActive {
+			t.Fatalf("thread %s = %q after identical rewrite, want active", id, th.AnchorStatus)
+		}
+	}
+
+	if err := os.WriteFile(path, []byte("\x89PNG-edited"), 0o644); err != nil {
+		t.Fatalf("edit: %v", err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if fs.threads["region"].AnchorStatus == store.AnchorOrphaned &&
+			fs.threads["time"].AnchorStatus == store.AnchorOrphaned &&
+			fs.threads["rt"].AnchorStatus == store.AnchorOrphaned {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	for id, th := range fs.threads {
+		if th.AnchorStatus != store.AnchorOrphaned {
+			t.Errorf("thread %s = %q, want orphaned", id, th.AnchorStatus)
+		}
 	}
 }

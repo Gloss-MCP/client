@@ -213,21 +213,20 @@ func (s *Store) UpdateThreadAnchor(ctx context.Context, id string, anchor Anchor
 	return s.getThread(ctx, id)
 }
 
-// ListActiveLineThreadsForPath returns active line- and cell-anchored
-// (text-positioned) threads whose file snapshot belongs to the given repo
-// and path. Called by the delta watcher to find threads to remap after a
-// file change.
-func (s *Store) ListActiveLineThreadsForPath(ctx context.Context, repoID, path string) ([]*Thread, error) {
+// ListActiveThreadsForPath returns active threads of every anchor type
+// whose file snapshot belongs to the given repo and path. Called by the
+// delta watcher to find threads to remap (text anchors) or orphan
+// (region and time anchors) after a file change.
+func (s *Store) ListActiveThreadsForPath(ctx context.Context, repoID, path string) ([]*Thread, error) {
 	query := selectThreads + `
 		 JOIN file_snapshots fs ON fs.id = t.file_snapshot_id
 		 WHERE fs.repo_id = ? AND fs.path = ?
-		   AND t.anchor_type IN ('line', 'cell')
 		   AND t.anchor_status = 'active'
 		 ORDER BY t.created_at, t.id`
 
 	rows, err := s.db.QueryContext(ctx, query, repoID, path)
 	if err != nil {
-		return nil, fmt.Errorf("store: list active line threads for %s: %w", path, err)
+		return nil, fmt.Errorf("store: list active threads for %s: %w", path, err)
 	}
 	defer rows.Close()
 
@@ -235,12 +234,12 @@ func (s *Store) ListActiveLineThreadsForPath(ctx context.Context, repoID, path s
 	for rows.Next() {
 		t, err := scanThread(rows)
 		if err != nil {
-			return nil, fmt.Errorf("store: list active line threads for %s: %w", path, err)
+			return nil, fmt.Errorf("store: list active threads for %s: %w", path, err)
 		}
 		threads = append(threads, t)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("store: list active line threads for %s: %w", path, err)
+		return nil, fmt.Errorf("store: list active threads for %s: %w", path, err)
 	}
 	return threads, nil
 }
