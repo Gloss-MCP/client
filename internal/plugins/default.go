@@ -21,11 +21,12 @@ func (c sizeCapped) Render(f File) ([]View, error) {
 }
 
 // NewDefaultRegistry returns the registry gloss ships with. Order is
-// precedence: specific formats first, then the broad syntax-highlighting
+// precedence: media (served from /raw, with its own size cap) and specific formats first, then the broad syntax-highlighting
 // plugin (which accepts any extension chroma knows, including the ones
 // claimed above it), then plaintext as the catch-all.
 func NewDefaultRegistry() *Registry {
 	return NewRegistry(
+		NewImage(), // before Code, whose lexers claim .svg
 		sizeCapped{NewMarkdown()},
 		sizeCapped{NewJSON()},
 		sizeCapped{NewCSV()},

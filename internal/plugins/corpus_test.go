@@ -16,7 +16,7 @@ func corpusFile(t *testing.T, name string) File {
 	if err != nil {
 		t.Fatalf("read corpus file: %v", err)
 	}
-	return File{Path: name, Content: b}
+	return File{Path: name, Content: b, Size: int64(len(b))}
 }
 
 // TestCorpusRendersThroughDefaultRegistry is the milestone-8 corpus check:
@@ -40,6 +40,8 @@ func TestCorpusRendersThroughDefaultRegistry(t *testing.T) {
 		{"prices.csv", "csv", []string{"Table", "Source"}, []string{`data-col="4"`, `data-line="3" data-line-end="4"`}, []string{"<b>bold</b>"}},
 		{"ragged.csv", "csv", []string{"Table", "Source"}, []string{`data-col="4"`}, nil},
 		{"empty.py", "code", []string{""}, nil, []string{`data-line=`}},
+		{"pixel.png", "image", []string{""}, []string{`data-region-surface`, `src="/raw/pixel.png"`}, []string{`data-line=`}},
+		{"logo.svg", "image", []string{""}, []string{`data-region-surface`, `src="/raw/logo.svg"`}, []string{"<script", "<svg", `data-line=`}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.file, func(t *testing.T) {

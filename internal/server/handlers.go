@@ -78,14 +78,7 @@ func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		content, err := os.ReadFile(filepath.Join(s.cfg.Root, filepath.FromSlash(path)))
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		plugin := s.cfg.Registry.For(path)
-		views, err := plugin.Render(plugins.File{Path: path, Content: content})
+		views, err := s.renderFile(path)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -99,6 +92,26 @@ func (s *Server) handleBrowse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = tmpl.ExecuteTemplate(w, "layout", data)
+}
+
+// renderFile renders the tracked file at path through its plugin. Streamed
+// plugins (media) get only the path and size: their HTML references the
+// /raw route, so the bytes are never loaded here.
+func (s *Server) renderFile(path string) ([]plugins.View, error) {
+	abs := filepath.Join(s.cfg.Root, filepath.FromSlash(path))
+	plugin := s.cfg.Registry.For(path)
+	if _, ok := plugin.(plugins.Streamed); ok {
+		info, err := os.Stat(abs)
+		if err != nil {
+			return nil, err
+		}
+		return plugin.Render(plugins.File{Path: path, Size: info.Size()})
+	}
+	content, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, err
+	}
+	return plugin.Render(plugins.File{Path: path, Content: content, Size: int64(len(content))})
 }
 
 // containsPath reports whether path is present in the sorted slice

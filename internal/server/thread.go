@@ -82,13 +82,7 @@ func (s *Server) handleSessionBrowse(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		content, err := os.ReadFile(filepath.Join(s.cfg.Root, filepath.FromSlash(path)))
-		if err != nil {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		plugin := s.cfg.Registry.For(path)
-		views, err := plugin.Render(plugins.File{Path: path, Content: content})
+		views, err := s.renderFile(path)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
