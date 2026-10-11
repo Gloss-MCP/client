@@ -498,3 +498,82 @@ func TestCreateCellThreadRejectsBadColumn(t *testing.T) {
 		"body":       "x",
 	})
 }
+
+func TestCreateMediaThreadsRoundTrip(t *testing.T) {
+	session, st, repo, root := newTestEnv(t)
+	sessID := createSession(t, session, repo.ID, "s")
+	for _, name := range []string{"shot.png", "talk.mp3", "demo.mp4"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("bytes-of-"+name), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, tt := range []struct {
+		file   string
+		anchor map[string]any
+		want   store.Anchor
+	}{
+		{"shot.png", map[string]any{"type": "region", "x": 0.25, "y": 0.5, "width": 0.5, "height": 0.25},
+			store.RegionAnchor{X: 0.25, Y: 0.5, Width: 0.5, Height: 0.25}},
+		{"talk.mp3", map[string]any{"type": "time", "start_time": 1.5, "end_time": 9.0},
+			store.TimeAnchor{StartTime: 1.5, EndTime: 9}},
+		{"demo.mp4", map[string]any{"type": "region_time", "x": 0.0, "y": 0.0, "width": 1.0, "height": 0.5, "start_time": 3.0, "end_time": 4.0},
+			store.RegionTimeAnchor{Width: 1, Height: 0.5, StartTime: 3, EndTime: 4}},
+	} {
+		t.Run(tt.file, func(t *testing.T) {
+			text := callTool(t, session, "create_thread", map[string]any{
+				"session_id": sessID, "file_path": tt.file, "anchor": tt.anchor, "body": "look here",
+			})
+			var created map[string]any
+			if err := json.Unmarshal([]byte(text), &created); err != nil {
+				t.Fatal(err)
+			}
+			thread, _, err := st.GetThread(context.Background(), created["id"].(string))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if thread.Anchor != tt.want {
+				t.Errorf("stored anchor = %#v, want %#v", thread.Anchor, tt.want)
+			}
+
+			// get_thread returns it back through MCP with the same geometry.
+			got := callTool(t, session, "get_thread", map[string]any{"thread_id": thread.ID})
+			var full struct {
+				Anchor map[string]any `json:"anchor"`
+			}
+			if err := json.Unmarshal([]byte(got), &full); err != nil {
+				t.Fatal(err)
+			}
+			for k, v := range tt.anchor {
+				if k == "type" {
+					continue
+				}
+				if full.Anchor[k] != v {
+					t.Errorf("get_thread anchor[%s] = %v, want %v", k, full.Anchor[k], v)
+				}
+			}
+		})
+	}
+}
+
+func TestCreateMediaThreadRejectsBadGeometry(t *testing.T) {
+	session, _, repo, root := newTestEnv(t)
+	sessID := createSession(t, session, repo.ID, "s")
+	if err := os.WriteFile(filepath.Join(root, "shot.png"), []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, anchor := range map[string]map[string]any{
+		"zero-size region":     {"type": "region", "x": 0.1, "y": 0.1},
+		"percent-style region": {"type": "region", "x": 10, "y": 10, "width": 20, "height": 20},
+		"overflowing region":   {"type": "region", "x": 0.8, "y": 0, "width": 0.5, "height": 0.5},
+		"reversed time":        {"type": "time", "start_time": 5, "end_time": 1},
+		"negative time":        {"type": "time", "start_time": -1, "end_time": 1},
+		"region_time bad box":  {"type": "region_time", "width": 2, "height": 1, "end_time": 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			callToolExpectError(t, session, "create_thread", map[string]any{
+				"session_id": sessID, "file_path": "shot.png", "anchor": anchor, "body": "x",
+			})
+		})
+	}
+}
