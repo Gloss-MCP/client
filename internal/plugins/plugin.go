@@ -39,14 +39,20 @@ type View struct {
 	Name string
 	HTML template.HTML
 	// Surface names the non-line selection model this view uses, when it
-	// isn't the shared [data-line] one: SurfaceRegion for views wrapped
-	// in a [data-region-surface] element. Empty for line-addressable
-	// and read-only views.
+	// isn't the shared [data-line] one: SurfaceRegion for images
+	// ([data-region-surface]), SurfaceTime for audio ([data-time-surface]),
+	// SurfaceRegionTime for video. Empty for line-addressable and
+	// read-only views.
 	Surface string
 }
 
-// Surface values for View.Surface.
-const SurfaceRegion = "region"
+// Surface values for View.Surface; they match the anchor type the
+// surface creates (store.AnchorType).
+const (
+	SurfaceRegion     = "region"
+	SurfaceTime       = "time"
+	SurfaceRegionTime = "region_time"
+)
 
 // Plugin renders a file's content as HTML for the file-browser view.
 type Plugin interface {

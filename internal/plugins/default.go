@@ -27,6 +27,7 @@ func (c sizeCapped) Render(f File) ([]View, error) {
 func NewDefaultRegistry() *Registry {
 	return NewRegistry(
 		NewImage(), // before Code, whose lexers claim .svg
+		NewAudio(),
 		sizeCapped{NewMarkdown()},
 		sizeCapped{NewJSON()},
 		sizeCapped{NewCSV()},

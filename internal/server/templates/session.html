@@ -78,7 +78,7 @@
 {{end}}
 
 {{define "codePane"}}
-{{if eq .Surface "region"}}{{template "regionPane" .}}{{else}}
+{{if eq .Surface "region"}}{{template "regionPane" .}}{{else if eq .Surface "time"}}{{template "timePane" .}}{{else}}
 <div x-data="glossCodeView({{.ThreadLines | toJSON}})" x-init="init()" @click="onLineClick($event)">
   <h2 class="font-mono text-xs text-gray-500 mb-2">{{.Path}}</h2>
   {{if gt (len .Views) 1}}
@@ -126,6 +126,39 @@
       <input type="hidden" name="width" x-bind:value="field('width')">
       <input type="hidden" name="height" x-bind:value="field('height')">
       <p class="text-xs text-gray-500 mb-1" x-text="'Comment on region ' + selLabel()"></p>
+      <textarea name="body" required rows="2" class="w-full border border-gray-300 rounded p-1 text-sm" placeholder="Add a comment..."></textarea>
+      <div class="flex justify-end gap-2 mt-1">
+        <button type="button" class="text-xs text-gray-500" @click="clearSelection()">Cancel</button>
+        <button type="submit" class="text-xs bg-gray-900 text-white rounded px-2 py-1">Comment</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}
+
+{{define "timePane"}}
+<div x-data="glossTimeView({{.Marks | toJSON}})">
+  <h2 class="font-mono text-xs text-gray-500 mb-2">{{.Path}}</h2>
+  {{range .Views}}{{.HTML}}{{end}}
+
+  <div class="flex flex-wrap items-center gap-2 mt-2 text-xs">
+    <button type="button" class="border border-gray-300 rounded px-2 py-0.5" @click="markStart()">Mark start</button>
+    <button type="button" class="border border-gray-300 rounded px-2 py-0.5" @click="markEnd()" :disabled="startT === null">Mark end</button>
+    <span class="text-gray-400">Play, then mark the part to comment on.</span>
+  </div>
+  <div class="flex flex-wrap gap-1 mt-2" x-show="visibleMarks().length > 0">
+    <template x-for="m in visibleMarks()" :key="m.id">
+      <button type="button" class="gloss-time-mark" :class="m.status === 'resolved' ? 'gloss-time-mark-resolved' : ''" @click="seekTo(m)" x-text="m.n + ': ' + rangeLabel(m.start, m.end)" :aria-label="'Thread ' + m.n"></button>
+    </template>
+  </div>
+
+  <div x-show="startT !== null" x-cloak class="sticky bottom-0 bg-white border border-gray-300 rounded p-2 mt-2 shadow">
+    <form method="post" action="/s/{{.SessionID}}/threads">
+      <input type="hidden" name="file_path" value="{{.Path}}">
+      <input type="hidden" name="return_to" value="{{.ReturnTo}}">
+      <input type="hidden" name="start_time" x-bind:value="field('start')">
+      <input type="hidden" name="end_time" x-bind:value="field('end')">
+      <p class="text-xs text-gray-500 mb-1" x-text="'Comment on ' + selLabel()"></p>
       <textarea name="body" required rows="2" class="w-full border border-gray-300 rounded p-1 text-sm" placeholder="Add a comment..."></textarea>
       <div class="flex justify-end gap-2 mt-1">
         <button type="button" class="text-xs text-gray-500" @click="clearSelection()">Cancel</button>

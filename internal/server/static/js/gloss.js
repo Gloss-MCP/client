@@ -253,3 +253,77 @@ function glossRegionView(marks) {
     },
   };
 }
+
+// glossTimeView backs time-range selection on an audio surface
+// (internal/plugins/audio.go): play the media, "Mark start" / "Mark end"
+// capture currentTime, and the composer submits start_time / end_time in
+// seconds. Existing time threads arrive as `marks` and render as chips
+// that seek the player to the range start and focus the thread.
+function glossTimeView(marks) {
+  let media = null; // closure, not reactive state
+
+  const two = (n) => String(Math.floor(n)).padStart(2, '0');
+  const clock = (t) => Math.floor(t / 60) + ':' + two(t % 60) + '.' + Math.floor((t % 1) * 10);
+
+  return {
+    marks: (marks || []).filter((m) => m.type === 'time'),
+    startT: null,
+    endT: null,
+    ready: false,
+
+    init() {
+      if (this.ready) return;
+      this.ready = true;
+      media = this.$el.querySelector('audio, video');
+    },
+
+    now() {
+      return media ? media.currentTime : 0;
+    },
+
+    markStart() {
+      this.startT = this.now();
+      if (this.endT !== null && this.endT < this.startT) this.endT = null;
+    },
+
+    markEnd() {
+      if (this.startT === null) return;
+      this.endT = Math.max(this.now(), this.startT);
+    },
+
+    clearSelection() {
+      this.startT = null;
+      this.endT = null;
+    },
+
+    // An unset end means an instant: end = start.
+    field(which) {
+      if (this.startT === null) return '';
+      const t = which === 'start' ? this.startT : (this.endT ?? this.startT);
+      return t.toFixed(3);
+    },
+
+    rangeLabel(start, end) {
+      return start === end ? clock(start) : clock(start) + '\u2013' + clock(end);
+    },
+
+    selLabel() {
+      if (this.startT === null) return '';
+      return this.rangeLabel(this.startT, this.endT ?? this.startT);
+    },
+
+    // Orphaned threads draw no chip (they stay in the thread panel).
+    visibleMarks() {
+      return this.marks.filter((m) => m.status !== 'orphaned');
+    },
+
+    seekTo(m) {
+      if (media) media.currentTime = m.start;
+      const el = document.getElementById('thread-' + m.id);
+      if (!el) return;
+      el.scrollIntoView({ block: 'nearest' });
+      el.classList.add('gloss-thread-flash');
+      setTimeout(() => el.classList.remove('gloss-thread-flash'), 1200);
+    },
+  };
+}
