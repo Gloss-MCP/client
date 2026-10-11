@@ -6,12 +6,17 @@
 // gutter highlighting of already-annotated lines. It operates
 // generically on [data-line] elements -- the join key any
 // line-anchoring plugin's rendered HTML is expected to carry
-// (internal/plugins/plaintext.go) -- rather than knowing anything about
-// how a given plugin rendered them.
+// (internal/plugins/lines.go) -- rather than knowing anything about how
+// a given plugin rendered them. Elements covering several lines (a
+// markdown block, a csv record) also carry data-line-end; csv cells
+// carry data-col, which turns a click into a cell selection.
 function glossCodeView(threadLines) {
   return {
     selStart: null,
     selEnd: null,
+    // selCol is the 1-based column when a single csv cell is selected
+    // (elements carrying data-col), else null for a plain line range.
+    selCol: null,
     threadLines: threadLines || [],
 
     // span returns the [start, end] source lines an element covers.
@@ -32,6 +37,7 @@ function glossCodeView(threadLines) {
       });
       this.$watch('selStart', () => this.paintSelection());
       this.$watch('selEnd', () => this.paintSelection());
+      this.$watch('selCol', () => this.paintSelection());
     },
 
     onLineClick(evt) {
@@ -40,9 +46,12 @@ function glossCodeView(threadLines) {
       const [start, end] = this.span(el);
       if (evt.shiftKey && this.selStart !== null) {
         this.selEnd = start >= this.selStart ? end : start;
+        this.selCol = null; // a multi-row range is no longer one cell
       } else {
         this.selStart = start;
         this.selEnd = end;
+        const cell = evt.target.closest('[data-col]');
+        this.selCol = cell && el.contains(cell) ? parseInt(cell.dataset.col, 10) : null;
       }
     },
 
@@ -57,12 +66,14 @@ function glossCodeView(threadLines) {
     selLabel() {
       const r = this.selRange();
       if (r.start === null) return '';
-      return r.start === r.end ? String(r.start) : r.start + '-' + r.end;
+      const lines = r.start === r.end ? String(r.start) : r.start + '-' + r.end;
+      return this.selCol === null ? lines : lines + ', column ' + this.selCol;
     },
 
     clearSelection() {
       this.selStart = null;
       this.selEnd = null;
+      this.selCol = null;
     },
 
     paintSelection() {
@@ -70,6 +81,13 @@ function glossCodeView(threadLines) {
       this.$el.querySelectorAll('[data-line]').forEach((el) => {
         const [start, end] = this.span(el);
         el.classList.toggle('bg-blue-50', r.start !== null && start <= r.end && end >= r.start);
+      });
+      this.$el.querySelectorAll('[data-col]').forEach((cell) => {
+        const row = cell.closest('[data-line]');
+        const picked = this.selCol !== null && row !== null &&
+          parseInt(row.dataset.line, 10) === r.start &&
+          parseInt(cell.dataset.col, 10) === this.selCol;
+        cell.classList.toggle('gloss-cell-selected', picked);
       });
     },
   };
