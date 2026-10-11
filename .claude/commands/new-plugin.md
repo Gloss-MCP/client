@@ -23,6 +23,17 @@ The plugin chooses the anchor variant (`docs/data-model.md#anchor`):
   `store.Label`, and docs. Only do this when `line` genuinely cannot
   express the position; csv's `cell` is the precedent.
 
+Media (binary) formats are a third case: the plugin is `plugins.Streamed`
+(it renders `<img|audio|video src="/raw/…">` via `rawURL`, never the
+bytes), sets `View.Surface` (`region`, `time` or `region_time`) and wraps
+the element in the matching `data-*-surface`. Add the extension to
+`mediaTypes` in `plugins/media.go`, handle `f.size() > MaxMediaBytes` with
+`tooLargeNote`, and reuse or extend a component in `gloss.js`
+(`glossRegionView`, `glossTimeView`, `glossVideoView`). Server-side,
+`createMediaThread` must accept the new anchor/file-kind pairing.
+Region/time threads orphan on any content change; there is no remap.
+Fixtures should be real and tiny (generate them; ffmpeg is fine).
+
 ## 2. Write the plugin
 
 `internal/plugins/<name>.go`, implementing `Plugin`

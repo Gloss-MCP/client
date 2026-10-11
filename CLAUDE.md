@@ -87,6 +87,24 @@ Project-specific overrides and additions:
   `/new-plugin` (`.claude/commands/new-plugin.md`). Per-format fixtures
   live in `testdata/plugins/`, not `testdata/connector/fixture`, whose
   file list connector tests pin.
+- **Media plugins (image, audio, video) are `plugins.Streamed`.** They
+  render `<img>/<audio>/<video src="/raw/{path}">` instead of file bytes,
+  so `Server.renderFile` stats rather than reads them. `GET /raw/` serves
+  tracked files with an allowlisted media extension only
+  (`plugins/media.go`), up to `plugins.MaxMediaBytes` (25 MB; above that
+  the plugin shows a too-large note with no annotation surface), via
+  `http.ServeContent` (Range for seeking) with `nosniff` and a sandbox CSP
+  — SVG is image-only, never inlined. A view's `Surface` (`region`,
+  `time`, `region_time`) picks the Alpine component in `session.html`:
+  `glossRegionView`, `glossTimeView`, `glossVideoView` in `gloss.js`
+  (`glossCodeView` knows nothing about media). Anchors are fractions 0–1
+  and seconds, validated by `store.ValidateAnchor` at marshal time, so
+  there is no migration (0002 already allows the types). Region/time
+  threads orphan whenever the file's hash changes — there is no media
+  remap. Alpine gotcha: in a click handler `$el` is the clicked element;
+  use `$root` for the component. Native `<video controls>` swallow
+  pointer down/up, hence the explicit "draw" mode. pdf is deferred (needs
+  a page anchor + migration + renderer).
 - **Schema changes are migrations in `internal/store/migrations/`.**
   Widening a CHECK means rebuilding the table; rebuild `threads` and
   `comments` together or dropping `threads` cascade-deletes every comment
