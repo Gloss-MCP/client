@@ -145,8 +145,8 @@ function glossRegionView(marks) {
 
     // point converts a pointer event to fractions of the displayed image.
     point(e, surface) {
-      const img = surface.querySelector('img');
-      const r = (img || surface).getBoundingClientRect();
+      const el = surface.querySelector('img, video');
+      const r = (el || surface).getBoundingClientRect();
       if (r.width === 0 || r.height === 0) return null;
       return { x: clamp((e.clientX - r.left) / r.width), y: clamp((e.clientY - r.top) / r.height) };
     },
@@ -218,6 +218,13 @@ function glossRegionView(marks) {
       setTimeout(() => el.classList.remove('gloss-thread-flash'), 1200);
     },
 
+    // shown reports whether mark m is drawn right now. Orphaned threads
+    // draw no box; images draw only region threads (glossVideoView adds a
+    // time check).
+    shown(m) {
+      return m.type === 'region' && m.status !== 'orphaned';
+    },
+
     place(el, r) {
       el.style.left = pct(r.x);
       el.style.top = pct(r.y);
@@ -229,7 +236,7 @@ function glossRegionView(marks) {
       if (!layer) return;
       layer.replaceChildren();
       for (const m of this.marks) {
-        if (m.status === 'orphaned') continue;
+        if (!this.shown(m)) continue;
         const box = document.createElement('button');
         box.type = 'button';
         box.className = 'gloss-mark' + (m.status === 'resolved' ? ' gloss-mark-resolved' : '');
@@ -260,8 +267,6 @@ function glossRegionView(marks) {
 // seconds. Existing time threads arrive as `marks` and render as chips
 // that seek the player to the range start and focus the thread.
 function glossTimeView(marks) {
-  let media = null; // closure, not reactive state
-
   const two = (n) => String(Math.floor(n)).padStart(2, '0');
   const clock = (t) => Math.floor(t / 60) + ':' + two(t % 60) + '.' + Math.floor((t % 1) * 10);
 
@@ -269,16 +274,15 @@ function glossTimeView(marks) {
     marks: (marks || []).filter((m) => m.type === 'time'),
     startT: null,
     endT: null,
-    ready: false,
-
-    init() {
-      if (this.ready) return;
-      this.ready = true;
-      media = this.$el.querySelector('audio, video');
+    // media is the player element; looked up per call so the helpers
+    // below can be reused by glossVideoView.
+    media() {
+      return this.$root.querySelector('audio, video');
     },
 
     now() {
-      return media ? media.currentTime : 0;
+      const m = this.media();
+      return m ? m.currentTime : 0;
     },
 
     markStart() {
@@ -297,7 +301,7 @@ function glossTimeView(marks) {
     },
 
     // An unset end means an instant: end = start.
-    field(which) {
+    timeField(which) {
       if (this.startT === null) return '';
       const t = which === 'start' ? this.startT : (this.endT ?? this.startT);
       return t.toFixed(3);
@@ -318,12 +322,91 @@ function glossTimeView(marks) {
     },
 
     seekTo(m) {
-      if (media) media.currentTime = m.start;
+      const player = this.media();
+      if (player) {
+        player.pause();
+        player.currentTime = m.start;
+      }
       const el = document.getElementById('thread-' + m.id);
       if (!el) return;
       el.scrollIntoView({ block: 'nearest' });
       el.classList.add('gloss-thread-flash');
       setTimeout(() => el.classList.remove('gloss-thread-flash'), 1200);
+    },
+  };
+}
+
+// glossVideoView combines glossRegionView (draw a rectangle over the
+// video frame) and glossTimeView (mark a time range) for region-time
+// anchors. Dragging is only live in "draw" mode, so it never fights the
+// native player controls: drawing pauses the video and takes the current
+// time as the range start; "Mark end" extends it. A region_time thread's
+// box is drawn only while the playhead is inside its time range.
+function glossVideoView(marks) {
+  const base = glossRegionView(marks);
+  const time = glossTimeView(marks);
+  const TOLERANCE = 0.25; // seconds either side that a mark stays visible
+
+  return {
+    ...base,
+    ...time,
+    marks: (marks || []).filter((m) => m.type === 'region_time'),
+    drawing: false,
+    startT: null,
+    endT: null,
+
+    init() {
+      base.init.call(this);
+      const video = this.media();
+      if (video) {
+        for (const ev of ['timeupdate', 'seeked', 'loadedmetadata']) {
+          video.addEventListener(ev, () => this.paint());
+        }
+      }
+      const surface = this.$el.querySelector('[data-region-surface]');
+      this.$watch('drawing', (on) => surface && surface.classList.toggle('gloss-drawing', on));
+    },
+
+    toggleDrawing() {
+      this.drawing = !this.drawing;
+      if (this.drawing) {
+        const video = this.media();
+        if (video) video.pause();
+      }
+    },
+
+    shown(m) {
+      if (m.type !== 'region_time' || m.status === 'orphaned') return false;
+      const t = this.now();
+      return t >= m.start - TOLERANCE && t <= m.end + TOLERANCE;
+    },
+
+    onPointerDown(e, surface) {
+      if (!this.drawing) return;
+      this.startT = this.now();
+      this.endT = null;
+      base.onPointerDown.call(this, e, surface);
+    },
+
+    onPointerUp(e, surface) {
+      base.onPointerUp.call(this, e, surface);
+      if (this.sel) this.drawing = false; // back to the player controls
+    },
+
+    markEnd() {
+      if (this.sel === null) return;
+      this.endT = Math.max(this.now(), this.startT);
+    },
+
+    clearSelection() {
+      this.sel = null;
+      this.startT = null;
+      this.endT = null;
+    },
+
+    selLabel() {
+      if (!this.sel) return '';
+      return base.selLabel.call(this) + ' at ' + this.rangeLabel(this.startT, this.endT ?? this.startT);
     },
   };
 }

@@ -439,3 +439,27 @@ func TestCreateMediaThreadRejectsMismatchedOrBadAnchors(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateRegionTimeThreadStoresAnchorAndRendersVideoPane(t *testing.T) {
+	srv, ts, sessID := newImageSession(t)
+	resp, err := http.PostForm(ts.URL+"/s/"+sessID+"/threads", url.Values{
+		"file_path": {"demo.mp4"}, "x": {"0.1"}, "y": {"0.2"}, "width": {"0.3"}, "height": {"0.4"},
+		"start_time": {"2"}, "end_time": {"3.5"}, "body": {"logo flickers here"},
+		"return_to": {ts.URL + "/s/" + sessID + "/files/demo.mp4"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	page := readBody(t, resp)
+	for _, want := range []string{"logo flickers here", "glossVideoView(", "&#34;type&#34;:&#34;region_time&#34;", "region 10%,20% 30%×40% at 2s-3.5s"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page missing %q", want)
+		}
+	}
+	threads, _ := srv.cfg.Store.ListThreads(context.Background(), sessID, store.ListThreadsFilter{})
+	want := store.RegionTimeAnchor{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.4, StartTime: 2, EndTime: 3.5}
+	if len(threads) != 1 || threads[0].Anchor != want {
+		t.Fatalf("threads = %+v", threads)
+	}
+}

@@ -207,6 +207,11 @@ func (s *Server) loadThreadViews(ctx context.Context, sessionID string, threads 
 				ID: t.ID, N: len(views), Status: string(t.AnchorStatus), Type: string(a.AnchorType()),
 				X: a.X, Y: a.Y, Width: a.Width, Height: a.Height,
 			})
+		case store.RegionTimeAnchor:
+			marks = append(marks, mediaMark{
+				ID: t.ID, N: len(views), Status: string(t.AnchorStatus), Type: string(a.AnchorType()),
+				X: a.X, Y: a.Y, Width: a.Width, Height: a.Height, Start: a.StartTime, End: a.EndTime,
+			})
 		case store.TimeAnchor:
 			marks = append(marks, mediaMark{
 				ID: t.ID, N: len(views), Status: string(t.AnchorStatus), Type: string(a.AnchorType()),

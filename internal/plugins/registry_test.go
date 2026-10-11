@@ -53,6 +53,8 @@ func TestDefaultRegistryPrecedence(t *testing.T) {
 		"Logo.SVG":        "image",
 		"talk.mp3":        "audio",
 		"Talk.WAV":        "audio",
+		"demo.webm":       "video",
+		"Demo.MP4":        "video",
 		"Makefile":        "code",
 		"mystery.xyz123":  "plaintext",
 		"noextension":     "plaintext",

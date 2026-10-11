@@ -110,3 +110,9 @@
 .gloss-player { width: 100%; max-width: 32rem; }
 .gloss-time-mark { border: 1px solid #d97706; background: rgb(251 191 36 / 0.2); color: #92400e; font-size: 0.75rem; border-radius: 9999px; padding: 1px 8px; }
 .gloss-time-mark-resolved { border-style: dashed; border-color: #9ca3af; background: transparent; color: #4b5563; }
+.gloss-video-surface { position: relative; display: inline-block; max-width: 100%; }
+.gloss-video-surface.gloss-drawing { cursor: crosshair; touch-action: none; user-select: none; }
+.gloss-media-video { display: block; max-width: 100%; height: auto; }
+/* Native <video controls> swallow pointer down/up, so while drawing the
+   overlay layer takes the pointer instead. */
+.gloss-video-surface.gloss-drawing .gloss-region-layer { pointer-events: auto; }

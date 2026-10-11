@@ -42,6 +42,7 @@ func TestCorpusRendersThroughDefaultRegistry(t *testing.T) {
 		{"empty.py", "code", []string{""}, nil, []string{`data-line=`}},
 		{"pixel.png", "image", []string{""}, []string{`data-region-surface`, `src="/raw/pixel.png"`}, []string{`data-line=`}},
 		{"tone.wav", "audio", []string{""}, []string{`data-time-surface`, `src="/raw/tone.wav"`}, []string{`data-line=`, `data-region-surface`}},
+		{"clip.webm", "video", []string{""}, []string{`data-region-surface`, `src="/raw/clip.webm"`, "<video"}, []string{`data-line=`}},
 		{"logo.svg", "image", []string{""}, []string{`data-region-surface`, `src="/raw/logo.svg"`}, []string{"<script", "<svg", `data-line=`}},
 	}
 	for _, tt := range tests {
