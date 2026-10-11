@@ -87,3 +87,13 @@
 .gloss-md th, .gloss-md td { border: 1px solid #d1d5db; padding: 0.25rem 0.5rem; }
 .gloss-md a { color: #2563eb; text-decoration: underline; }
 .gloss-md hr { border-color: #d1d5db; }
+
+/* CSV table view (internal/plugins/csv.go). */
+.gloss-csv { border-collapse: collapse; }
+.gloss-csv-row { cursor: pointer; }
+.gloss-csv-row:hover { background-color: #f9fafb; }
+.gloss-csv th, .gloss-csv td { border: 1px solid #e5e7eb; padding: 0.125rem 0.5rem; text-align: left; white-space: pre-wrap; vertical-align: top; }
+.gloss-csv th { background-color: #f3f4f6; font-weight: 600; }
+.gloss-csv td.gloss-line-no { border: none; background: none; }
+.gloss-csv-cell:hover { outline: 1px solid #93c5fd; }
+.gloss-cell-selected { outline: 2px solid #3b82f6; background-color: #dbeafe; }
