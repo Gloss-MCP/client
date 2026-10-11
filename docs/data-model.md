@@ -65,12 +65,14 @@ and renders whatever anchor shape the plugin hands it, opaquely.
 | `start_line`, `end_line` | `line`, `cell` | For `cell`, the physical line span of the row's record (a quoted field can make a record span lines) |
 | `col`, `header` | `cell` | 1-based column and that column's header text at anchor time; remap follows the header, not the index |
 | `context_before`, `context_after` | `line`, `cell` | Surrounding context lines captured for delta remapping |
-| `x`, `y`, `width`, `height` | `region`, `region_time` | Percentages of the rendered asset |
-| `start_time`, `end_time` | `time`, `region_time` | |
+| `x`, `y`, `width`, `height` | `region`, `region_time` | Fractions (0–1) of the rendered asset's width and height; `width`/`height` > 0 and `x+width`, `y+height` ≤ 1 |
+| `start_time`, `end_time` | `time`, `region_time` | Seconds; `0` ≤ `start_time` ≤ `end_time` (equal = an instant) |
 
 Variant usage by built-in plugins: text formats (code, markdown, json)
 use `line`; csv uses `cell`; image uses `region`; audio uses `time`; video uses
-`region_time` (a region *at* a point in time).
+`region_time` (a region *at* a time range). Region and time geometry is
+validated when the anchor is stored, so every writer (UI, MCP) is held to
+the ranges above.
 
 ### Delta tracking
 
@@ -83,6 +85,12 @@ thread is orphaned. If remapping fails, the thread's `anchor_status` becomes
 `orphaned` — visible but flagged; comments are never silently lost.
 For git repos, `FileSnapshot.git_commit_sha` is the additional
 fallback. Implemented in milestone 7 (`internal/delta`).
+
+`region`, `time` and `region_time` anchors address positions in binary
+media, which can't be re-located after an edit: when the file's content
+hash no longer matches the snapshot the thread was anchored to, the
+thread is orphaned (milestone 9). Reopening it re-activates it without
+moving it.
 
 ## Thread
 

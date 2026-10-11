@@ -45,7 +45,11 @@ The `anchor` parameter is the polymorphic Anchor shape defined in
 [data-model.md](data-model.md#anchor) — the variant must match what
 the file's plugin declares. For a `cell` anchor pass `start_line`,
 `end_line` (the row's record) and `col`; the server fills in the header
-and context.
+and context. For a `region` anchor (images) pass `x`, `y`, `width`,
+`height` as fractions 0–1 of the image; for `time` (audio) pass
+`start_time`, `end_time` in seconds; for `region_time` (video) pass both.
+Out-of-range geometry is a tool error naming the violated bound. Region
+and time threads are orphaned if the file's content changes.
 
 ## Comments
 

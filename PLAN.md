@@ -175,12 +175,14 @@ here, once the second plugin proves the pattern.
 
 *Exit: fixture corpus renders and annotates correctly per format.*
 
-### 9. Media plugins
+### 9. Media plugins — complete (pdf deferred)
 
 Image first and fully — XY-region anchors with an Alpine region-draw
-UI — since it proves the non-line anchor path. Audio (time), video
-(region+time), and pdf are trailing scope within the milestone, reusing
-what image established.
+UI — since it proves the non-line anchor path. Audio (time) and video
+(region+time) reuse what image established, served from a new `/raw`
+route. pdf is **deferred to a follow-up**: it needs a page anchor
+variant, a migration (rebuild `threads` + `comments`), and a renderer.
+Region/time threads orphan when the file changes (no media remap).
 
 *Exit: region/time anchors round-trip through UI, store, and MCP.*
 
@@ -360,3 +362,10 @@ concern.
   only and says releases are pending — it needs the real brew/curl
   commands once milestone 10 ships, and the plugin page needs the media
   formats after milestone 9. No demo GIF.
+
+- 2026-10-11: Milestone 9 complete (pdf deferred) — image, audio and
+  video plugins with region, time and region-time anchors, served from
+  `/raw` (25 MB cap, Range, sandboxed). Anchor geometry is fractions
+  0–1 and seconds, validated in the store; no migration was needed.
+  Region/time threads orphan when the file content changes. Playwright
+  round-trips each type through the UI, store and MCP.
