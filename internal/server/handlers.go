@@ -42,6 +42,7 @@ func (s *Server) routes() {
 
 	s.mux.HandleFunc("GET /{$}", s.handleBrowse)
 	s.mux.HandleFunc("GET /files/{path...}", s.handleBrowse)
+	s.mux.HandleFunc("GET /raw/{path...}", s.handleRaw)
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(staticContentFS)))
 
 	s.mux.HandleFunc("POST /sessions", s.handleCreateSession)
