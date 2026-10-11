@@ -11,6 +11,10 @@ import path from 'node:path';
 // land in a tracked directory.
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixtureSrc = path.resolve(here, '../testdata/connector/fixture');
+// Milestone 8's per-format corpus, served under formats/ alongside the
+// connector fixture (kept out of the fixture itself because
+// internal/connector's tests pin that directory's exact file list).
+const formatsSrc = path.resolve(here, '../testdata/plugins');
 
 // Playwright evaluates this file in the main process and again in every
 // worker, and environment changes made here do not reach the workers. So
@@ -22,6 +26,7 @@ const fixtureDir = path.join(tmpdir(), 'gloss-e2e-fixture');
 if (process.env.TEST_WORKER_INDEX === undefined) {
   rmSync(fixtureDir, { recursive: true, force: true });
   cpSync(fixtureSrc, fixtureDir, { recursive: true });
+  cpSync(formatsSrc, path.join(fixtureDir, 'formats'), { recursive: true });
 }
 
 const PORT = 4747;
