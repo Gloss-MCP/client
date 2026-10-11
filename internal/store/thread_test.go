@@ -98,9 +98,9 @@ func TestAnchorVariantsRoundTripThroughStore(t *testing.T) {
 		anchor Anchor
 	}{
 		{"main.go", LineAnchor{StartLine: 5, EndLine: 9, ContextBefore: []string{"// setup", "func run() {"}, ContextAfter: []string{"}"}}},
-		{"diagram.png", RegionAnchor{X: 12.5, Y: 40, Width: 25, Height: 10.75}},
+		{"diagram.png", RegionAnchor{X: 0.125, Y: 0.4, Width: 0.25, Height: 0.1075}},
 		{"podcast.mp3", TimeAnchor{StartTime: 61.5, EndTime: 75}},
-		{"demo.mp4", RegionTimeAnchor{X: 0, Y: 0, Width: 50, Height: 50, StartTime: 12, EndTime: 14.5}},
+		{"demo.mp4", RegionTimeAnchor{X: 0, Y: 0, Width: 0.5, Height: 0.5, StartTime: 12, EndTime: 14.5}},
 	}
 
 	for _, tt := range tests {
@@ -222,7 +222,7 @@ func seedListThreadsFixture(t *testing.T, s *Store) (string, map[string]*Thread)
 		"go-root":     create("go-root", "main.go", LineAnchor{StartLine: 1, EndLine: 1}, AuthorHuman, ""),
 		"go-src":      create("go-src", "src/util.go", LineAnchor{StartLine: 2, EndLine: 3}, AuthorAI, "claude-opus-4"),
 		"md-src-deep": create("md-src-deep", "src/docs/readme.md", LineAnchor{StartLine: 4, EndLine: 4}, AuthorAI, "claude-code-session-xyz"),
-		"png-assets":  create("png-assets", "assets/logo.png", RegionAnchor{X: 1, Y: 2, Width: 3, Height: 4}, AuthorHuman, ""),
+		"png-assets":  create("png-assets", "assets/logo.png", RegionAnchor{X: 0.01, Y: 0.02, Width: 0.03, Height: 0.04}, AuthorHuman, ""),
 	}
 
 	// go-src gets orphaned; a human replies to md-src-deep (must NOT
@@ -310,7 +310,7 @@ func TestListActiveLineThreadsForPath(t *testing.T) {
 	regionThread, _, err := s.CreateThread(ctx, CreateThreadParams{
 		SessionID:      sess.ID,
 		FileSnapshotID: snapGo.ID,
-		Anchor:         RegionAnchor{X: 10, Y: 10, Width: 50, Height: 50},
+		Anchor:         RegionAnchor{X: 0.1, Y: 0.1, Width: 0.5, Height: 0.5},
 		CreatedBy:      "ben",
 		Body:           "region",
 		AuthorType:     AuthorHuman,
