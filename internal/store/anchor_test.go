@@ -8,6 +8,7 @@ import (
 func TestAnchorMarshalRoundTrip(t *testing.T) {
 	anchors := []Anchor{
 		LineAnchor{StartLine: 3, EndLine: 7, ContextBefore: []string{"a", "b"}, ContextAfter: []string{"c"}},
+		CellAnchor{StartLine: 4, EndLine: 5, Col: 2, Header: "price", ContextBefore: []string{"a,b"}, ContextAfter: []string{"c,d"}},
 		RegionAnchor{X: 10.5, Y: 20, Width: 30, Height: 40.25},
 		TimeAnchor{StartTime: 1.5, EndTime: 90},
 		RegionTimeAnchor{X: 1, Y: 2, Width: 3, Height: 4, StartTime: 5.5, EndTime: 6},
