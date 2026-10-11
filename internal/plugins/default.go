@@ -28,6 +28,7 @@ func NewDefaultRegistry() *Registry {
 	return NewRegistry(
 		NewImage(), // before Code, whose lexers claim .svg
 		NewAudio(),
+		NewVideo(),
 		sizeCapped{NewMarkdown()},
 		sizeCapped{NewJSON()},
 		sizeCapped{NewCSV()},
