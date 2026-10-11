@@ -63,12 +63,22 @@ async function createSessionWithThread(page, sessionName, line, body) {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: poll until the thread panel contains text matching the predicate
-// or the timeout elapses.
+// Helper: the UI does not live-refresh, so after changing a file on disk
+// reload the page until the assertion holds (the watcher debounces at
+// 150 ms and remaps asynchronously).
 // ---------------------------------------------------------------------------
-async function waitForThreadText(page, textOrRE, timeout = 5000) {
-  await expect(page.getByText(textOrRE)).toBeVisible({ timeout });
+async function expectAfterReload(page, assertion, { url, timeout = 8000 } = {}) {
+  await expect(async () => {
+    // A deleted file's own URL 404s, so callers can reload a session URL.
+    if (url) await page.goto(url);
+    else await page.reload();
+    await assertion();
+  }).toPass({ timeout });
 }
+
+// The thread status badge. Scoped to thread cards: a bare getByText would
+// also match the status filter's <option> elements.
+const threadStatus = (page) => page.locator('[id^="thread-"] span.uppercase');
 
 // ---------------------------------------------------------------------------
 // Test 1: Lines inserted before the anchor — thread follows.
@@ -90,9 +100,9 @@ test('remap: lines inserted before anchor shift the thread', async ({ page }) =>
 
   // Poll until the thread panel reflects the new anchor position.
   // The watcher debounces at 150 ms; give it up to 5 s total.
-  await expect(page.getByText('line 14')).toBeVisible({ timeout: 5000 });
-  // Status must remain ACTIVE.
-  await expect(page.getByText('ACTIVE')).toBeVisible();
+  await expectAfterReload(page, () => expect(page.getByText('line 14')).toBeVisible({ timeout: 500 }));
+  // Status must remain active.
+  await expect(threadStatus(page)).toHaveText('active');
 });
 
 // ---------------------------------------------------------------------------
@@ -105,10 +115,10 @@ test('orphan: thread orphaned when context is gone', async ({ page }) => {
   writeFileSync(samplePath(), 'package fixture\n\nfunc unrelated() {}\n');
 
   // Poll until the orphaned badge and Reopen button appear.
-  await expect(page.getByText('ORPHANED')).toBeVisible({ timeout: 5000 });
-  await expect(page.getByRole('button', { name: 'Reopen' })).toBeVisible();
+  await expectAfterReload(page, () => expect(threadStatus(page)).toHaveText('orphaned', { timeout: 500 }));
+  await expect(page.getByRole('button', { name: 'Reopen', exact: true })).toBeVisible();
   // Resolve button must NOT be shown for an orphaned thread.
-  await expect(page.getByRole('button', { name: 'Resolve' })).not.toBeVisible();
+  await expect(page.getByRole('button', { name: 'Resolve', exact: true })).not.toBeVisible();
   // Yellow styling — verify the thread card has the orphaned class.
   await expect(page.locator('.border-yellow-400')).toBeVisible();
 });
@@ -120,12 +130,12 @@ test('reopen: orphaned thread can be reopened', async ({ page }) => {
   const sessionURL = await createSessionWithThread(page, 'Reopen test', 12, 'Will be orphaned');
 
   writeFileSync(samplePath(), 'package fixture\n\nfunc unrelated() {}\n');
-  await expect(page.getByText('ORPHANED')).toBeVisible({ timeout: 5000 });
+  await expectAfterReload(page, () => expect(threadStatus(page)).toHaveText('orphaned', { timeout: 500 }));
 
-  await page.getByRole('button', { name: 'Reopen' }).click();
+  await page.getByRole('button', { name: 'Reopen', exact: true }).click();
 
-  await expect(page.getByText('ACTIVE')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Resolve' })).toBeVisible();
+  await expect(threadStatus(page)).toHaveText('active');
+  await expect(page.getByRole('button', { name: 'Resolve', exact: true })).toBeVisible();
   // Yellow border should be gone.
   await expect(page.locator('.border-yellow-400')).not.toBeVisible();
 });
@@ -139,5 +149,5 @@ test('orphan: file deletion orphans all threads', async ({ page }) => {
   const { unlinkSync } = await import('node:fs');
   unlinkSync(samplePath());
 
-  await expect(page.getByText('ORPHANED')).toBeVisible({ timeout: 5000 });
+  await expectAfterReload(page, () => expect(threadStatus(page)).toHaveText('orphaned', { timeout: 500 }), { url: sessionURL });
 });
