@@ -78,6 +78,7 @@
 {{end}}
 
 {{define "codePane"}}
+{{if eq .Surface "region"}}{{template "regionPane" .}}{{else}}
 <div x-data="glossCodeView({{.ThreadLines | toJSON}})" x-init="init()" @click="onLineClick($event)">
   <h2 class="font-mono text-xs text-gray-500 mb-2">{{.Path}}</h2>
   {{if gt (len .Views) 1}}
@@ -99,6 +100,32 @@
       <input type="hidden" name="end_line" x-bind:value="selRange().end">
       <input type="hidden" name="col" x-bind:value="selCol">
       <p class="text-xs text-gray-500 mb-1" x-text="'Comment on line ' + selLabel()"></p>
+      <textarea name="body" required rows="2" class="w-full border border-gray-300 rounded p-1 text-sm" placeholder="Add a comment..."></textarea>
+      <div class="flex justify-end gap-2 mt-1">
+        <button type="button" class="text-xs text-gray-500" @click="clearSelection()">Cancel</button>
+        <button type="submit" class="text-xs bg-gray-900 text-white rounded px-2 py-1">Comment</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}
+{{end}}
+
+{{define "regionPane"}}
+<div x-data="glossRegionView({{.Marks | toJSON}})">
+  <h2 class="font-mono text-xs text-gray-500 mb-2">{{.Path}}</h2>
+  {{range .Views}}{{.HTML}}{{end}}
+  <p class="text-xs text-gray-400 mt-1">Drag on the image to select a region to comment on.</p>
+
+  <div x-show="sel !== null" x-cloak class="sticky bottom-0 bg-white border border-gray-300 rounded p-2 mt-2 shadow">
+    <form method="post" action="/s/{{.SessionID}}/threads">
+      <input type="hidden" name="file_path" value="{{.Path}}">
+      <input type="hidden" name="return_to" value="{{.ReturnTo}}">
+      <input type="hidden" name="x" x-bind:value="field('x')">
+      <input type="hidden" name="y" x-bind:value="field('y')">
+      <input type="hidden" name="width" x-bind:value="field('width')">
+      <input type="hidden" name="height" x-bind:value="field('height')">
+      <p class="text-xs text-gray-500 mb-1" x-text="'Comment on region ' + selLabel()"></p>
       <textarea name="body" required rows="2" class="w-full border border-gray-300 rounded p-1 text-sm" placeholder="Add a comment..."></textarea>
       <div class="flex justify-end gap-2 mt-1">
         <button type="button" class="text-xs text-gray-500" @click="clearSelection()">Cancel</button>

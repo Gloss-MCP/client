@@ -304,6 +304,17 @@ func TestCreateRegionThreadStoresRegionAnchor(t *testing.T) {
 		t.Errorf("page missing the thread's comment or region label:\n%s", page)
 	}
 
+	// The page uses the region component (not the line one) and ships the
+	// thread as a mark for the overlay.
+	for _, want := range []string{"glossRegionView(", `name="width"`, "&#34;n&#34;:1", "&#34;status&#34;:&#34;active&#34;"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page missing %q", want)
+		}
+	}
+	if strings.Contains(page, "glossCodeView(") {
+		t.Errorf("image page must not use the line-selection component")
+	}
+
 	threads, err := srv.cfg.Store.ListThreads(context.Background(), sessID, store.ListThreadsFilter{})
 	if err != nil || len(threads) != 1 {
 		t.Fatalf("threads = %v, err %v", threads, err)

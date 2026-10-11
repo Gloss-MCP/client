@@ -92,3 +92,164 @@ function glossCodeView(threadLines) {
     },
   };
 }
+
+// glossRegionView backs the selection and highlighting for a media
+// surface -- an element carrying [data-region-surface] around an <img>
+// (internal/plugins/image.go). Dragging on the image draws a rectangle,
+// stored as fractions (0-1) of the displayed image so it is independent of
+// zoom and window size; the composer submits it as x/y/width/height.
+// Existing region threads arrive as `marks` (JSON from the server) and are
+// drawn as numbered boxes on an overlay layer; orphaned threads draw no
+// box (they stay visible in the thread panel).
+//
+// The line-based glossCodeView is deliberately untouched: it knows
+// nothing about regions, and this knows nothing about lines.
+function glossRegionView(marks) {
+  // DOM handles and in-flight drag state live in the closure, not on the
+  // returned object, so Alpine's reactivity doesn't proxy them.
+  let layer = null;
+  let origin = null; // {x, y} fractions where the drag began
+  let live = null; // rectangle being dragged, painted but not yet committed
+
+  const clamp = (v) => Math.min(1, Math.max(0, v));
+  const pct = (f) => (f * 100) + '%';
+
+  return {
+    marks: marks || [],
+    // sel is the committed selection {x, y, width, height}, or null.
+    sel: null,
+    // MIN_SIZE is the smallest side (fraction) a drag must span to count
+    // as a selection rather than a stray click.
+    MIN_SIZE: 0.01,
+    ready: false,
+
+    init() {
+      if (this.ready) return;
+      this.ready = true;
+      const surface = this.$el.querySelector('[data-region-surface]');
+      if (!surface) return;
+      layer = document.createElement('div');
+      layer.className = 'gloss-region-layer';
+      surface.appendChild(layer);
+
+      surface.addEventListener('pointerdown', (e) => this.onPointerDown(e, surface));
+      surface.addEventListener('pointermove', (e) => this.onPointerMove(e, surface));
+      surface.addEventListener('pointerup', (e) => this.onPointerUp(e, surface));
+      surface.addEventListener('pointercancel', () => this.cancelDrag());
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') this.clearSelection();
+      });
+      this.$watch('sel', () => this.paint());
+      this.paint();
+    },
+
+    // point converts a pointer event to fractions of the displayed image.
+    point(e, surface) {
+      const img = surface.querySelector('img');
+      const r = (img || surface).getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) return null;
+      return { x: clamp((e.clientX - r.left) / r.width), y: clamp((e.clientY - r.top) / r.height) };
+    },
+
+    rectBetween(a, b) {
+      return {
+        x: Math.min(a.x, b.x),
+        y: Math.min(a.y, b.y),
+        width: Math.abs(a.x - b.x),
+        height: Math.abs(a.y - b.y),
+      };
+    },
+
+    onPointerDown(e, surface) {
+      if (e.button !== 0 || e.target.closest('.gloss-mark')) return;
+      const p = this.point(e, surface);
+      if (!p) return;
+      origin = p;
+      live = this.rectBetween(p, p);
+      surface.setPointerCapture(e.pointerId);
+      e.preventDefault(); // no native image drag / text selection
+      this.paint();
+    },
+
+    onPointerMove(e, surface) {
+      if (!origin) return;
+      const p = this.point(e, surface);
+      if (!p) return;
+      live = this.rectBetween(origin, p);
+      this.paint();
+    },
+
+    onPointerUp(e, surface) {
+      if (!origin) return;
+      const p = this.point(e, surface);
+      const r = p ? this.rectBetween(origin, p) : live;
+      this.cancelDrag();
+      if (r && r.width >= this.MIN_SIZE && r.height >= this.MIN_SIZE) this.sel = r;
+    },
+
+    cancelDrag() {
+      origin = null;
+      live = null;
+      this.paint();
+    },
+
+    clearSelection() {
+      this.sel = null;
+    },
+
+    selLabel() {
+      const s = this.sel;
+      if (!s) return '';
+      const p = (f) => Math.round(f * 100) + '%';
+      return p(s.x) + ',' + p(s.y) + ' ' + p(s.width) + '×' + p(s.height);
+    },
+
+    // field formats one selection coordinate for the composer's hidden
+    // inputs: empty until there is a selection.
+    field(name) {
+      return this.sel ? this.sel[name].toFixed(6) : '';
+    },
+
+    focusThread(id) {
+      const el = document.getElementById('thread-' + id);
+      if (!el) return;
+      el.scrollIntoView({ block: 'nearest' });
+      el.classList.add('gloss-thread-flash');
+      setTimeout(() => el.classList.remove('gloss-thread-flash'), 1200);
+    },
+
+    place(el, r) {
+      el.style.left = pct(r.x);
+      el.style.top = pct(r.y);
+      el.style.width = pct(r.width);
+      el.style.height = pct(r.height);
+    },
+
+    paint() {
+      if (!layer) return;
+      layer.replaceChildren();
+      for (const m of this.marks) {
+        if (m.status === 'orphaned') continue;
+        const box = document.createElement('button');
+        box.type = 'button';
+        box.className = 'gloss-mark' + (m.status === 'resolved' ? ' gloss-mark-resolved' : '');
+        box.dataset.thread = m.id;
+        box.textContent = String(m.n);
+        box.setAttribute('aria-label', 'Thread ' + m.n);
+        this.place(box, m);
+        box.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.focusThread(m.id);
+        });
+        layer.appendChild(box);
+      }
+      const r = live || this.sel;
+      if (r) {
+        const box = document.createElement('div');
+        box.className = 'gloss-region-sel';
+        this.place(box, r);
+        layer.appendChild(box);
+      }
+    },
+  };
+}
