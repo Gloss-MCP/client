@@ -16,3 +16,6 @@ e2e/playwright-report/
 .vscode/
 *.swp
 .DS_Store
+
+# Compiled by `make site` (CI builds it for Pages; not committed)
+site/css/site.css
