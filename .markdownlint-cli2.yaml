@@ -1,0 +1,4 @@
+# Fixtures are test inputs, not documentation: testdata/plugins/doc.md
+# deliberately contains raw HTML to prove the markdown plugin strips it.
+ignores:
+  - "testdata/**"

@@ -3,6 +3,8 @@ description: Scaffold a new file-format plugin (renderer + anchors + tests + cor
 argument-hint: <format name, e.g. "yaml"> [extensions]
 ---
 
+# New plugin: $ARGUMENTS
+
 Add a rendering plugin for **$ARGUMENTS** to `internal/plugins/`. This
 checklist is extracted from how the code, json, markdown and csv plugins
 were built; follow it rather than inventing new structure.
