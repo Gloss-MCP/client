@@ -152,3 +152,34 @@ func unmarshalAnchor(anchorType AnchorType, data string) (Anchor, error) {
 		return nil, fmt.Errorf("store: unknown anchor type %q", anchorType)
 	}
 }
+
+// Label returns a short human-readable position for UI display, e.g.
+// "line 3-5" or "line 4, col 2 (price)".
+func Label(a Anchor) string {
+	span := func(start, end int) string {
+		if start == end {
+			return fmt.Sprintf("line %d", start)
+		}
+		return fmt.Sprintf("line %d-%d", start, end)
+	}
+	switch v := a.(type) {
+	case LineAnchor:
+		return span(v.StartLine, v.EndLine)
+	case CellAnchor:
+		label := fmt.Sprintf("%s, col %d", span(v.StartLine, v.EndLine), v.Col)
+		if v.Header != "" {
+			label += " (" + v.Header + ")"
+		}
+		return label
+	case RegionAnchor:
+		return "region"
+	case TimeAnchor:
+		return fmt.Sprintf("%gs-%gs", v.StartTime, v.EndTime)
+	case RegionTimeAnchor:
+		return fmt.Sprintf("region at %gs-%gs", v.StartTime, v.EndTime)
+	}
+	return ""
+}
+
+// AnchorLabel returns the thread's position label (see Label).
+func (t *Thread) AnchorLabel() string { return Label(t.Anchor) }

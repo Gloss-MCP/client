@@ -116,7 +116,7 @@
   {{range .Threads}}
   <div class="border rounded p-2 {{if eq .Thread.AnchorStatus "orphaned"}}border-yellow-400 bg-yellow-50{{else}}border-gray-200{{end}}" id="thread-{{.Thread.ID}}">
     <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-      <span>{{if .FilePath}}{{.FilePath}} · {{end}}{{with .Thread.Anchor}}line {{.StartLine}}{{if ne .StartLine .EndLine}}-{{.EndLine}}{{end}}{{end}}</span>
+      <span>{{if .FilePath}}{{.FilePath}} · {{end}}{{.Thread.AnchorLabel}}</span>
       <span class="uppercase {{if eq .Thread.AnchorStatus "orphaned"}}text-yellow-700 font-semibold{{end}}">{{.Thread.AnchorStatus}}</span>
     </div>
     {{range .Comments}}{{template "commentNode" .}}{{end}}

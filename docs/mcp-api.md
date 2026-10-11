@@ -43,7 +43,9 @@ distinguishes `human` from `ai`. See
 
 The `anchor` parameter is the polymorphic Anchor shape defined in
 [data-model.md](data-model.md#anchor) — the variant must match what
-the file's plugin declares.
+the file's plugin declares. For a `cell` anchor pass `start_line`,
+`end_line` (the row's record) and `col`; the server fills in the header
+and context.
 
 ## Comments
 

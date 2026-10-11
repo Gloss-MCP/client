@@ -61,21 +61,25 @@ and renders whatever anchor shape the plugin hands it, opaquely.
 
 | Field | Variants | Notes |
 |---|---|---|
-| `type` | | `line` \| `region` \| `time` \| `region_time` |
-| `start_line`, `end_line` | `line` | |
-| `context_before`, `context_after` | `line` | Surrounding context lines captured for delta remapping |
+| `type` | | `line` \| `cell` \| `region` \| `time` \| `region_time` |
+| `start_line`, `end_line` | `line`, `cell` | For `cell`, the physical line span of the row's record (a quoted field can make a record span lines) |
+| `col`, `header` | `cell` | 1-based column and that column's header text at anchor time; remap follows the header, not the index |
+| `context_before`, `context_after` | `line`, `cell` | Surrounding context lines captured for delta remapping |
 | `x`, `y`, `width`, `height` | `region`, `region_time` | Percentages of the rendered asset |
 | `start_time`, `end_time` | `time`, `region_time` | |
 
-Variant usage by built-in plugins: text formats (code, markdown, json,
-csv) use `line`; image uses `region`; audio uses `time`; video uses
+Variant usage by built-in plugins: text formats (code, markdown, json)
+use `line`; csv uses `cell`; image uses `region`; audio uses `time`; video uses
 `region_time` (a region *at* a point in time).
 
 ### Delta tracking
 
 When a file changes, line numbers shift. On change, the stored context
 lines are fuzzy-matched against the new content to remap `line`
-anchors. If remapping fails, the thread's `anchor_status` becomes
+anchors. `cell` anchors remap their row the same way (falling back to
+a per-field comparison when columns were added or removed) and then
+re-resolve the column by header text; if the header is gone the
+thread is orphaned. If remapping fails, the thread's `anchor_status` becomes
 `orphaned` — visible but flagged; comments are never silently lost.
 For git repos, `FileSnapshot.git_commit_sha` is the additional
 fallback. Implemented in milestone 7 (`internal/delta`).

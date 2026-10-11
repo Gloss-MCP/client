@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -204,6 +206,64 @@ func TestSessionHomeShowsThreadsAcrossFiles(t *testing.T) {
 	for _, want := range []string{"about the readme", "README.md", "about the todo", "notes/todo.txt"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("session home missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestCreateThreadWithColumnAnchorsToCell(t *testing.T) {
+	srv, _ := testServer(t)
+	ctx := context.Background()
+	if err := os.WriteFile(filepath.Join(srv.cfg.Root, "prices.csv"), []byte("id,name,price\n1,apple,0.5\n2,pear,0.7\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sess, err := srv.cfg.Store.CreateSession(ctx, srv.cfg.RepoID, "review", "", testAuthor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
+	resp, err := http.PostForm(ts.URL+"/s/"+sess.ID+"/threads", url.Values{
+		"file_path": {"prices.csv"}, "start_line": {"3"}, "end_line": {"3"}, "col": {"3"},
+		"body": {"check this"}, "return_to": {"/s/" + sess.ID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := readBody(t, resp)
+	_ = resp.Body.Close()
+	if !strings.Contains(body, "line 3, col 3 (price)") {
+		t.Errorf("session view missing cell label: %s", body)
+	}
+
+	threads, err := srv.cfg.Store.ListThreads(ctx, sess.ID, store.ListThreadsFilter{})
+	if err != nil || len(threads) != 1 {
+		t.Fatalf("threads = %d, err %v", len(threads), err)
+	}
+	ca, ok := threads[0].Anchor.(store.CellAnchor)
+	if !ok || ca.Col != 3 || ca.Header != "price" || ca.StartLine != 3 {
+		t.Errorf("anchor = %#v, want cell line 3 col 3 header price", threads[0].Anchor)
+	}
+}
+
+func TestCreateThreadRejectsInvalidColumn(t *testing.T) {
+	srv, _ := testServer(t)
+	sess, err := srv.cfg.Store.CreateSession(context.Background(), srv.cfg.RepoID, "review", "", testAuthor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+	for _, col := range []string{"0", "-1", "x"} {
+		resp, err := http.PostForm(ts.URL+"/s/"+sess.ID+"/threads", url.Values{
+			"file_path": {"README.md"}, "start_line": {"1"}, "end_line": {"1"}, "col": {col}, "body": {"x"},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("col=%q: status = %d, want 400", col, resp.StatusCode)
 		}
 	}
 }

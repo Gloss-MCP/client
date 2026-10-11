@@ -56,9 +56,10 @@ func registerThreadTools(srv *mcp.Server, cfg Config) {
 // anchorParams is the polymorphic anchor shape accepted by create_thread.
 // The type field selects the variant; unused fields are ignored.
 type anchorParams struct {
-	Type      string  `json:"type"                 jsonschema:"required,Anchor variant: line, region, time, or region_time"`
+	Type      string  `json:"type"                 jsonschema:"required,Anchor variant: line, cell, region, time, or region_time"`
 	StartLine int     `json:"start_line,omitempty" jsonschema:"Line anchor: first line (1-based, inclusive)"`
 	EndLine   int     `json:"end_line,omitempty"   jsonschema:"Line anchor: last line (1-based, inclusive)"`
+	Col       int     `json:"col,omitempty"        jsonschema:"Cell anchor: column (1-based); start_line/end_line give the record's line span"`
 	X         float64 `json:"x,omitempty"          jsonschema:"Region anchor: X offset as a fraction of width"`
 	Y         float64 `json:"y,omitempty"          jsonschema:"Region anchor: Y offset as a fraction of height"`
 	Width     float64 `json:"width,omitempty"      jsonschema:"Region anchor: width as a fraction"`
@@ -125,12 +126,17 @@ func handleCreateThread(ctx context.Context, req *mcp.CallToolRequest, cfg Confi
 		return nil, nil, err
 	}
 
-	// Populate context lines for line anchors so the delta watcher can
-	// remap after file edits.
-	if la, ok := anchor.(store.LineAnchor); ok {
-		lines := delta.SplitLines(content)
-		la.ContextBefore, la.ContextAfter = delta.ExtractContext(lines, la.StartLine, la.EndLine, delta.ContextLines)
-		anchor = la
+	// Populate context lines for line and cell anchors so the delta
+	// watcher can remap after file edits; cell anchors also capture the
+	// column's header text.
+	switch a := anchor.(type) {
+	case store.LineAnchor:
+		a.ContextBefore, a.ContextAfter = delta.ExtractContext(delta.SplitLines(content), a.StartLine, a.EndLine, delta.ContextLines)
+		anchor = a
+	case store.CellAnchor:
+		a.ContextBefore, a.ContextAfter = delta.ExtractContext(delta.SplitLines(content), a.StartLine, a.EndLine, delta.ContextLines)
+		a.Header = delta.HeaderFor(content, a.Col)
+		anchor = a
 	}
 
 	thread, _, err := cfg.Store.CreateThread(ctx, store.CreateThreadParams{
@@ -211,6 +217,11 @@ func parseAnchor(p anchorParams) (store.Anchor, error) {
 			return nil, fmt.Errorf("line anchor requires start_line >= 1 and end_line >= start_line")
 		}
 		return store.LineAnchor{StartLine: p.StartLine, EndLine: p.EndLine}, nil
+	case "cell":
+		if p.StartLine < 1 || p.EndLine < p.StartLine || p.Col < 1 {
+			return nil, fmt.Errorf("cell anchor requires start_line >= 1, end_line >= start_line, and col >= 1")
+		}
+		return store.CellAnchor{StartLine: p.StartLine, EndLine: p.EndLine, Col: p.Col}, nil
 	case "region":
 		return store.RegionAnchor{X: p.X, Y: p.Y, Width: p.Width, Height: p.Height}, nil
 	case "time":
@@ -224,7 +235,7 @@ func parseAnchor(p anchorParams) (store.Anchor, error) {
 			StartTime: p.StartTime, EndTime: p.EndTime,
 		}, nil
 	default:
-		return nil, fmt.Errorf("unknown anchor type %q; must be line, region, time, or region_time", p.Type)
+		return nil, fmt.Errorf("unknown anchor type %q; must be line, cell, region, time, or region_time", p.Type)
 	}
 }
 
