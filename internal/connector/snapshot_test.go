@@ -113,6 +113,7 @@ func TestLocalConnectorSnapshotPlainFiles(t *testing.T) {
 		"build/output.bin",
 		"important.local",
 		"main.go",
+		"sample.go",
 		"secrets.local",
 		"vendor/thirdparty.go",
 	}
@@ -159,6 +160,7 @@ func TestGitConnectorSnapshotRespectsGitignore(t *testing.T) {
 		"build/output.bin",
 		"important.local",
 		"main.go",
+		"sample.go",
 	}
 	if got := snapshotPaths(snaps); !equalStrings(got, want) {
 		t.Errorf("git snapshot paths = %v, want %v", got, want)
