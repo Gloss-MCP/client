@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plugin reference — Gloss</title>
+<meta name="description" content="File formats Gloss renders and how each one is anchored.">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body class="min-h-screen bg-white text-gray-900 antialiased">
+  <header class="border-b border-gray-200">
+    <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-4">
+      <a href="index.html" class="text-lg font-bold tracking-tight">Gloss</a>
+      <nav class="flex flex-wrap gap-4 text-sm text-gray-600">
+      <a href="index.html" class="hover:text-indigo-700">Home</a>
+      <a href="install.html" class="hover:text-indigo-700">Install</a>
+      <a href="quickstart.html" class="hover:text-indigo-700">Quickstart</a>
+      <a href="mcp.html" class="hover:text-indigo-700">MCP setup</a>
+      <a href="plugins.html" class="hover:text-indigo-700 font-semibold text-gray-900">Plugins</a>
+      <a href="https://github.com/gloss-mcp/client" class="hover:text-indigo-700">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <main class="mx-auto max-w-4xl px-4 py-10 doc">
+    <h1 class="text-3xl font-bold tracking-tight">Plugin reference</h1>
+    <p>Each file is rendered by the first plugin that accepts it. Order matters: specific formats are tried
+    before code, whose lexers accept almost any extension, and plain text is the catch-all.</p>
+
+    <table>
+      <tr><th>Plugin</th><th>Handles</th><th>Views</th><th>Anchor</th></tr>
+      <tr><td>markdown</td><td><code>.md</code>, <code>.markdown</code></td><td>Rendered, Source</td><td>line</td></tr>
+      <tr><td>json</td><td><code>.json</code></td><td>Raw, Formatted</td><td>line</td></tr>
+      <tr><td>csv</td><td><code>.csv</code> (comma-separated only)</td><td>Table, Source</td><td>cell</td></tr>
+      <tr><td>code</td><td>Anything chroma has a lexer for</td><td>Highlighted source</td><td>line</td></tr>
+      <tr><td>plaintext</td><td>Everything else</td><td>Text</td><td>line</td></tr>
+    </table>
+
+    <h2>Anchors</h2>
+    <ul>
+      <li><strong>line</strong>: a start and end line. Gloss stores a few lines of context either side so it can
+      follow the text when the file changes.</li>
+      <li><strong>cell</strong>: the CSV record's line span, a column, and the column's header. After an edit,
+      the column is found again by header text. If the header is gone the thread orphans.</li>
+    </ul>
+
+    <h2>Limits</h2>
+    <ul>
+      <li>Files over 1 MB fall back to plain text.</li>
+      <li>Binary files are shown as a placeholder.</li>
+      <li>Raw HTML inside markdown is stripped, not rendered.</li>
+      <li>Tab-separated files render as text.</li>
+      <li>Image, audio, video and PDF annotation are not available yet.</li>
+    </ul>
+
+    <h2>Writing a plugin</h2>
+    <p>Plugins live in <code>internal/plugins/</code> and implement a small interface that returns one or more
+    named HTML views. Line-addressable output follows the <code>data-line</code> attribute convention, which
+    gives selection, highlighting, re-anchoring and MCP support for free. The repository's
+    <code>/new-plugin</code> command scaffolds the renderer, tests and fixtures. See
+    <a href="https://github.com/gloss-mcp/client/blob/master/.claude/commands/new-plugin.md">the checklist</a>.</p>
+
+  </main>
+  <footer class="border-t border-gray-200">
+    <div class="mx-auto max-w-4xl px-4 py-6 text-sm text-gray-500">
+      Gloss is open source under the <a class="underline" href="https://github.com/gloss-mcp/client/blob/master/LICENSE">MIT license</a>.
+    </div>
+  </footer>
+</body>
+</html>

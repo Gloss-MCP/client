@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@source "../*.html";
+
+@layer base {
+  html { scroll-behavior: smooth; }
+}
+
+/* Prose-ish defaults for hand-written doc pages, scoped to .doc. */
+.doc h2 { @apply mt-10 mb-3 text-xl font-semibold text-gray-900; }
+.doc h3 { @apply mt-6 mb-2 text-base font-semibold text-gray-900; }
+.doc p, .doc ul, .doc ol { @apply my-3 leading-relaxed text-gray-700; }
+.doc ul { @apply list-disc pl-6; }
+.doc ol { @apply list-decimal pl-6; }
+.doc a { @apply text-indigo-700 underline underline-offset-2 hover:text-indigo-900; }
+.doc code { @apply rounded bg-gray-100 px-1 py-0.5 text-[0.9em] text-gray-900; }
+.doc pre { @apply my-4 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100; }
+.doc pre code { @apply bg-transparent p-0 text-inherit; }
+.doc table { @apply my-4 w-full border-collapse text-sm; }
+.doc th, .doc td { @apply border border-gray-200 px-3 py-2 text-left align-top; }
+.doc th { @apply bg-gray-50 font-semibold; }
+.doc .note { @apply my-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900; }

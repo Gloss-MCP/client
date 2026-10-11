@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP setup — Gloss</title>
+<meta name="description" content="Connect Claude Code or another MCP client to Gloss.">
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body class="min-h-screen bg-white text-gray-900 antialiased">
+  <header class="border-b border-gray-200">
+    <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-4">
+      <a href="index.html" class="text-lg font-bold tracking-tight">Gloss</a>
+      <nav class="flex flex-wrap gap-4 text-sm text-gray-600">
+      <a href="index.html" class="hover:text-indigo-700">Home</a>
+      <a href="install.html" class="hover:text-indigo-700">Install</a>
+      <a href="quickstart.html" class="hover:text-indigo-700">Quickstart</a>
+      <a href="mcp.html" class="hover:text-indigo-700 font-semibold text-gray-900">MCP setup</a>
+      <a href="plugins.html" class="hover:text-indigo-700">Plugins</a>
+      <a href="https://github.com/gloss-mcp/client" class="hover:text-indigo-700">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <main class="mx-auto max-w-4xl px-4 py-10 doc">
+    <h1 class="text-3xl font-bold tracking-tight">MCP setup</h1>
+    <p>Gloss serves MCP over streamable HTTP at <code>/mcp</code> on the same port as the web UI
+    (default <code>http://localhost:4747/mcp</code>). The server must be running (<code>gloss .</code>)
+    for the AI to reach it. There is no stdio mode.</p>
+
+    <h2>Claude Code</h2>
+    <p>Either use the CLI:</p>
+<pre><code>claude mcp add --transport http gloss http://localhost:4747/mcp</code></pre>
+    <p>or commit a <code>.mcp.json</code> at your project root:</p>
+<pre><code>{
+  "mcpServers": {
+    "gloss": {
+      "type": "http",
+      "url": "http://localhost:4747/mcp"
+    }
+  }
+}</code></pre>
+    <p>If you start Gloss with <code>-port</code>, change the URL to match.</p>
+
+    <h2>Other clients</h2>
+    <p>Any client that supports streamable HTTP can connect to the same URL. There is no authentication,
+    so the server only listens locally. Don't expose the port.</p>
+
+    <h2>Attribution</h2>
+    <p>Every write made over MCP is recorded as <code>author_type=ai</code>. The <code>author_agent</code>
+    defaults to the client name sent in the MCP initialize handshake, and any write tool accepts an
+    explicit <code>author_agent</code> to override it.</p>
+
+    <h2>Tools</h2>
+    <table>
+      <tr><th>Group</th><th>Tool</th><th>Purpose</th></tr>
+      <tr><td rowspan="3">Sessions</td><td><code>create_session</code></td><td>Start a review session</td></tr>
+      <tr><td><code>list_sessions</code></td><td>List sessions, optionally by status</td></tr>
+      <tr><td><code>get_session</code></td><td>One session with stats</td></tr>
+      <tr><td rowspan="5">Threads</td><td><code>create_thread</code></td><td>Start a thread on a file, anchored to a line range or CSV cell</td></tr>
+      <tr><td><code>get_thread</code></td><td>A thread with its full comment chain</td></tr>
+      <tr><td><code>list_threads</code></td><td>Filter by file, directory, type, anchor status or author</td></tr>
+      <tr><td><code>resolve_thread</code></td><td>Mark resolved</td></tr>
+      <tr><td><code>reopen_thread</code></td><td>Reopen a resolved or orphaned thread</td></tr>
+      <tr><td rowspan="3">Comments</td><td><code>add_comment</code></td><td>Reply in a thread</td></tr>
+      <tr><td><code>edit_comment</code></td><td>Edit a comment</td></tr>
+      <tr><td><code>delete_comment</code></td><td>Soft-delete a comment</td></tr>
+      <tr><td rowspan="2">Repos</td><td><code>list_repos</code></td><td>The repository Gloss was started against</td></tr>
+      <tr><td><code>get_repo</code></td><td>Repository details and session count</td></tr>
+    </table>
+    <p>Full parameter shapes are in the
+    <a href="https://github.com/gloss-mcp/client/blob/master/docs/mcp-api.md">MCP API reference</a>.</p>
+
+  </main>
+  <footer class="border-t border-gray-200">
+    <div class="mx-auto max-w-4xl px-4 py-6 text-sm text-gray-500">
+      Gloss is open source under the <a class="underline" href="https://github.com/gloss-mcp/client/blob/master/LICENSE">MIT license</a>.
+    </div>
+  </footer>
+</body>
+</html>
