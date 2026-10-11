@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/modelcontextprotocol/go-sdk v1.6.1
+	github.com/yuin/goldmark v1.8.6
 	modernc.org/sqlite v1.53.0
 )
 

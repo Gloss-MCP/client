@@ -14,10 +14,19 @@ function glossCodeView(threadLines) {
     selEnd: null,
     threadLines: threadLines || [],
 
+    // span returns the [start, end] source lines an element covers.
+    // Line-per-element plugins carry only data-line; block-per-element
+    // plugins (markdown's rendered view) also carry data-line-end.
+    span(el) {
+      const start = parseInt(el.dataset.line, 10);
+      const end = el.dataset.lineEnd ? parseInt(el.dataset.lineEnd, 10) : start;
+      return [start, end];
+    },
+
     init() {
       this.$el.querySelectorAll('[data-line]').forEach((el) => {
-        const n = parseInt(el.dataset.line, 10);
-        if (this.threadLines.includes(n)) {
+        const [start, end] = this.span(el);
+        if (this.threadLines.some((n) => n >= start && n <= end)) {
           el.classList.add('bg-amber-50');
         }
       });
@@ -28,12 +37,12 @@ function glossCodeView(threadLines) {
     onLineClick(evt) {
       const el = evt.target.closest('[data-line]');
       if (!el) return;
-      const n = parseInt(el.dataset.line, 10);
+      const [start, end] = this.span(el);
       if (evt.shiftKey && this.selStart !== null) {
-        this.selEnd = n;
+        this.selEnd = start >= this.selStart ? end : start;
       } else {
-        this.selStart = n;
-        this.selEnd = n;
+        this.selStart = start;
+        this.selEnd = end;
       }
     },
 
@@ -59,8 +68,8 @@ function glossCodeView(threadLines) {
     paintSelection() {
       const r = this.selRange();
       this.$el.querySelectorAll('[data-line]').forEach((el) => {
-        const n = parseInt(el.dataset.line, 10);
-        el.classList.toggle('bg-blue-50', r.start !== null && n >= r.start && n <= r.end);
+        const [start, end] = this.span(el);
+        el.classList.toggle('bg-blue-50', r.start !== null && start <= r.end && end >= r.start);
       });
     },
   };
