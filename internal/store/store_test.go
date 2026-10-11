@@ -97,8 +97,8 @@ func TestOpenAppliesMigrationsFromEmpty(t *testing.T) {
 	if err := s.db.QueryRow(`SELECT MAX(version) FROM schema_migrations`).Scan(&version); err != nil {
 		t.Fatalf("read schema version: %v", err)
 	}
-	if version != 1 {
-		t.Errorf("schema version = %d, want 1", version)
+	if version != 2 {
+		t.Errorf("schema version = %d, want 2", version)
 	}
 
 	for _, table := range []string{"repositories", "sessions", "file_snapshots", "threads", "comments"} {
@@ -142,8 +142,8 @@ func TestOpenIsIdempotent(t *testing.T) {
 	if err := s2.db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if count != 1 {
-		t.Errorf("schema_migrations rows = %d, want 1", count)
+	if count != 2 {
+		t.Errorf("schema_migrations rows = %d, want 2", count)
 	}
 }
 

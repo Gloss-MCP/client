@@ -11,6 +11,7 @@ type AnchorType string
 // Anchor variants (docs/data-model.md#anchor).
 const (
 	AnchorTypeLine       AnchorType = "line"
+	AnchorTypeCell       AnchorType = "cell"
 	AnchorTypeRegion     AnchorType = "region"
 	AnchorTypeTime       AnchorType = "time"
 	AnchorTypeRegionTime AnchorType = "region_time"
@@ -38,6 +39,25 @@ type LineAnchor struct {
 
 // AnchorType implements Anchor.
 func (LineAnchor) AnchorType() AnchorType { return AnchorTypeLine }
+
+// CellAnchor anchors to one cell of a delimited-text file (csv). The row
+// is identified by the physical line span of its record (a quoted field
+// can make a record span several lines), so the line-based delta
+// machinery locates it after edits; the column is a 1-based index kept
+// in step with Header, the column's header text at anchor time.
+type CellAnchor struct {
+	StartLine int    `json:"start_line"`
+	EndLine   int    `json:"end_line"`
+	Col       int    `json:"col"`
+	Header    string `json:"header"`
+	// ContextBefore and ContextAfter hold surrounding context lines
+	// captured for delta remapping, as for LineAnchor.
+	ContextBefore []string `json:"context_before"`
+	ContextAfter  []string `json:"context_after"`
+}
+
+// AnchorType implements Anchor.
+func (CellAnchor) AnchorType() AnchorType { return AnchorTypeCell }
 
 // RegionAnchor anchors to an XY region as percentages of the rendered
 // asset; used by images.
@@ -100,6 +120,12 @@ func unmarshalAnchor(anchorType AnchorType, data string) (Anchor, error) {
 	switch anchorType {
 	case AnchorTypeLine:
 		var a LineAnchor
+		if err := unmarshal(&a); err != nil {
+			return nil, err
+		}
+		return a, nil
+	case AnchorTypeCell:
+		var a CellAnchor
 		if err := unmarshal(&a); err != nil {
 			return nil, err
 		}
