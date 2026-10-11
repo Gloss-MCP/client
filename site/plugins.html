@@ -31,6 +31,9 @@
       <tr><td>markdown</td><td><code>.md</code>, <code>.markdown</code></td><td>Rendered, Source</td><td>line</td></tr>
       <tr><td>json</td><td><code>.json</code></td><td>Raw, Formatted</td><td>line</td></tr>
       <tr><td>csv</td><td><code>.csv</code> (comma-separated only)</td><td>Table, Source</td><td>cell</td></tr>
+      <tr><td>image</td><td><code>.png</code>, <code>.jpg</code>, <code>.gif</code>, <code>.webp</code>, <code>.svg</code></td><td>Image</td><td>region</td></tr>
+      <tr><td>audio</td><td><code>.mp3</code>, <code>.wav</code>, <code>.ogg</code>, <code>.m4a</code>, <code>.flac</code></td><td>Player</td><td>time</td></tr>
+      <tr><td>video</td><td><code>.mp4</code>, <code>.webm</code>, <code>.mov</code>, <code>.ogv</code></td><td>Player</td><td>region_time</td></tr>
       <tr><td>code</td><td>Anything chroma has a lexer for</td><td>Highlighted source</td><td>line</td></tr>
       <tr><td>plaintext</td><td>Everything else</td><td>Text</td><td>line</td></tr>
     </table>
@@ -41,7 +44,12 @@
       follow the text when the file changes.</li>
       <li><strong>cell</strong>: the CSV record's line span, a column, and the column's header. After an edit,
       the column is found again by header text. If the header is gone the thread orphans.</li>
+      <li><strong>region</strong>: a rectangle on an image, as fractions (0&ndash;1) of its width and height.</li>
+      <li><strong>time</strong>: a start and end in seconds on an audio file.</li>
+      <li><strong>region_time</strong>: a rectangle on a video frame plus a time range.</li>
     </ul>
+    <p>Media files cannot be re-located after an edit, so if the file changes, its region and time threads
+    are orphaned. They stay visible and can be reopened.</p>
 
     <h2>Limits</h2>
     <ul>
@@ -49,7 +57,8 @@
       <li>Binary files are shown as a placeholder.</li>
       <li>Raw HTML inside markdown is stripped, not rendered.</li>
       <li>Tab-separated files render as text.</li>
-      <li>Image, audio, video and PDF annotation are not available yet.</li>
+      <li>Images, audio and video over 25 MB are not previewed. SVG is shown as an image only.</li>
+      <li>PDF annotation is not available yet.</li>
     </ul>
 
     <h2>Writing a plugin</h2>
