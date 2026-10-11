@@ -192,7 +192,7 @@ CHANGELOG.
 
 *Exit: `brew install` → `gloss .` works on a clean machine.*
 
-### 11. Website & launch polish
+### 11. Website & launch polish — complete
 
 Static docs site in-repo (`site/`, hand-written HTML + the same Tailwind
 build), GitHub Pages deploy workflow. Landing, install, quickstart, MCP
@@ -349,3 +349,14 @@ concern.
   so this is a plain configured value, not a foreign key. Delta-tracking
   fields on `LineAnchor` (`context_before`/`context_after`) are left
   empty at creation time — milestone 7 owns context-line capture.
+- 2026-10-11: Milestone 11 complete, built ahead of milestones 9 and 10
+  (landed out of order). `site/` holds five hand-written pages — landing,
+  install, quickstart, MCP setup, plugin reference — with two screenshots,
+  styled by the same standalone Tailwind CLI via a new `make site` target.
+  `.github/workflows/pages.yml` tests, builds and deploys it to GitHub
+  Pages; the repo's Pages source must be set to "GitHub Actions" once, by
+  hand. `site/site_test.go` guards titles and relative links. README
+  rewritten. Known gaps: the install page documents build-from-source
+  only and says releases are pending — it needs the real brew/curl
+  commands once milestone 10 ships, and the plugin page needs the media
+  formats after milestone 9. No demo GIF.
