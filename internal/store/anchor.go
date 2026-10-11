@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 )
 
 // AnchorType discriminates the polymorphic anchor variants.
@@ -59,8 +60,8 @@ type CellAnchor struct {
 // AnchorType implements Anchor.
 func (CellAnchor) AnchorType() AnchorType { return AnchorTypeCell }
 
-// RegionAnchor anchors to an XY region as percentages of the rendered
-// asset; used by images.
+// RegionAnchor anchors to an XY region as fractions (0-1) of the rendered
+// asset's width and height; used by images.
 type RegionAnchor struct {
 	X      float64 `json:"x"`
 	Y      float64 `json:"y"`
@@ -94,11 +95,70 @@ type RegionTimeAnchor struct {
 // AnchorType implements Anchor.
 func (RegionTimeAnchor) AnchorType() AnchorType { return AnchorTypeRegionTime }
 
+// ValidateAnchor reports whether a's geometry is well-formed. Text
+// anchors are not checked here (the callers that build them validate line
+// numbers against the file); region and time anchors are, because nothing
+// else can: a region is fractions of the asset, so it must lie within
+// [0,1] on both axes, and a time range must be non-negative and ordered.
+func ValidateAnchor(a Anchor) error {
+	switch v := a.(type) {
+	case RegionAnchor:
+		return validateRegion(v.X, v.Y, v.Width, v.Height)
+	case TimeAnchor:
+		return validateTimes(v.StartTime, v.EndTime)
+	case RegionTimeAnchor:
+		if err := validateRegion(v.X, v.Y, v.Width, v.Height); err != nil {
+			return err
+		}
+		return validateTimes(v.StartTime, v.EndTime)
+	}
+	return nil
+}
+
+func validateRegion(x, y, w, h float64) error {
+	const eps = 1e-9 // tolerate float error from x+width sums
+	switch {
+	case !finite(x, y, w, h):
+		return fmt.Errorf("store: region must be finite numbers")
+	case x < 0 || y < 0:
+		return fmt.Errorf("store: region x and y must be >= 0 (fractions of the asset)")
+	case w <= 0 || h <= 0:
+		return fmt.Errorf("store: region width and height must be > 0")
+	case x+w > 1+eps || y+h > 1+eps:
+		return fmt.Errorf("store: region must lie within the asset (x+width <= 1, y+height <= 1)")
+	}
+	return nil
+}
+
+func validateTimes(start, end float64) error {
+	switch {
+	case !finite(start, end):
+		return fmt.Errorf("store: time range must be finite numbers")
+	case start < 0:
+		return fmt.Errorf("store: start_time must be >= 0")
+	case end < start:
+		return fmt.Errorf("store: end_time must be >= start_time")
+	}
+	return nil
+}
+
+func finite(vs ...float64) bool {
+	for _, v := range vs {
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return false
+		}
+	}
+	return true
+}
+
 // marshalAnchor serialises an anchor to its type discriminator and JSON
 // payload for storage.
 func marshalAnchor(a Anchor) (AnchorType, string, error) {
 	if a == nil {
 		return "", "", fmt.Errorf("store: anchor is required")
+	}
+	if err := ValidateAnchor(a); err != nil {
+		return "", "", err
 	}
 	data, err := json.Marshal(a)
 	if err != nil {
@@ -172,14 +232,17 @@ func Label(a Anchor) string {
 		}
 		return label
 	case RegionAnchor:
-		return "region"
+		return fmt.Sprintf("region %s,%s %s\u00d7%s", pct(v.X), pct(v.Y), pct(v.Width), pct(v.Height))
 	case TimeAnchor:
 		return fmt.Sprintf("%gs-%gs", v.StartTime, v.EndTime)
 	case RegionTimeAnchor:
-		return fmt.Sprintf("region at %gs-%gs", v.StartTime, v.EndTime)
+		return fmt.Sprintf("region %s,%s %s\u00d7%s at %gs-%gs", pct(v.X), pct(v.Y), pct(v.Width), pct(v.Height), v.StartTime, v.EndTime)
 	}
 	return ""
 }
+
+// pct formats a 0-1 fraction as a whole percentage.
+func pct(f float64) string { return fmt.Sprintf("%.0f%%", f*100) }
 
 // AnchorLabel returns the thread's position label (see Label).
 func (t *Thread) AnchorLabel() string { return Label(t.Anchor) }
