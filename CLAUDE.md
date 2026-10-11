@@ -99,8 +99,18 @@ Project-specific overrides and additions:
   does not live-refresh: specs that edit files on disk reload the page
   until the watcher's result appears. In cloud sandboxes set
   `PW_EXECUTABLE_PATH` to the pre-installed Chromium (see the config).
+- **The docs site lives in `site/`.** Hand-written HTML pages (no
+  templating, no JS), styled by `site/css/input.css` through the same
+  standalone Tailwind CLI. `make site` compiles `site/css/site.css`,
+  which is gitignored (unlike `app.css`) and built by
+  `.github/workflows/pages.yml`, which deploys to GitHub Pages on pushes
+  to `master` that touch `site/`. It is a project site under `/client/`,
+  so every link is relative. `site/site_test.go` checks titles,
+  descriptions and that relative links resolve. Screenshots in
+  `site/img/` are captured by hand from a real run. Update the install
+  and plugin pages when milestones 9/10 change them.
 - **The Makefile is the single entry point.** `make run / test / lint /
-  e2e / build / assets`. CI and agents use only these targets. Always
+  e2e / build / assets / site`. CI and agents use only these targets. Always
   invoke Makefile targets directly — never construct the underlying
   commands by hand.
 - **CLAUDE.md stays current.** When a milestone changes how the repo works,
