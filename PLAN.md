@@ -361,8 +361,7 @@ concern.
   rewritten. Known gaps: the install page documents build-from-source
   only and says releases are pending — it needs the real brew/curl
   commands once milestone 10 ships, and the plugin page needs the media
-  formats after milestone 9. No demo GIF.
-
+  formats after milestone 9 (done in the milestone 9 PR). No demo GIF.
 - 2026-10-11: Milestone 9 complete (pdf deferred) — image, audio and
   video plugins with region, time and region-time anchors, served from
   `/raw` (25 MB cap, Range, sandboxed). Anchor geometry is fractions
