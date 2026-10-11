@@ -107,7 +107,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		RepoID:        repo.ID,
 		ConnectorType: repo.ConnectorType,
 		Port:          *port,
-		Registry:      plugins.NewRegistry(plugins.NewPlaintext()),
+		Registry:      plugins.NewDefaultRegistry(),
 		Store:         st,
 		Author:        *author,
 	})
