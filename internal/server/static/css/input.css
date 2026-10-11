@@ -97,3 +97,13 @@
 .gloss-csv td.gloss-line-no { border: none; background: none; }
 .gloss-csv-cell:hover { outline: 1px solid #93c5fd; }
 .gloss-cell-selected { outline: 2px solid #3b82f6; background-color: #dbeafe; }
+
+/* Media surfaces (image plugin + glossRegionView). The wrapper shrinks to
+   the image so overlay percentages are fractions of the picture. */
+.gloss-region-surface { position: relative; display: inline-block; max-width: 100%; cursor: crosshair; touch-action: none; user-select: none; }
+.gloss-media-img { display: block; max-width: 100%; height: auto; }
+.gloss-region-layer { position: absolute; inset: 0; pointer-events: none; }
+.gloss-mark { position: absolute; pointer-events: auto; cursor: pointer; border: 2px solid #d97706; background: rgb(251 191 36 / 0.2); color: #92400e; font-size: 0.7rem; line-height: 1; text-align: left; padding: 1px 3px; }
+.gloss-mark-resolved { border-style: dashed; border-color: #9ca3af; background: rgb(156 163 175 / 0.12); color: #4b5563; }
+.gloss-region-sel { position: absolute; border: 2px solid #2563eb; background: rgb(59 130 246 / 0.2); }
+.gloss-thread-flash { outline: 2px solid #2563eb; }
