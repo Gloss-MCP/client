@@ -49,7 +49,8 @@ func TestDefaultRegistryPrecedence(t *testing.T) {
 		"main.go":         "code",
 		"app.py":          "code",
 		"notes.txt":       "code", // chroma has a plain-text lexer; still line-annotatable
-		"photo.png":       "plaintext",
+		"photo.png":       "image",
+		"Logo.SVG":        "image",
 		"Makefile":        "code",
 		"mystery.xyz123":  "plaintext",
 		"noextension":     "plaintext",

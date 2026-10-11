@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gloss-mcp/client/internal/connector"
@@ -127,5 +128,34 @@ func TestRawRefusesOversizedFiles(t *testing.T) {
 	resp, _ := get(t, ts.URL+"/raw/big.png", nil)
 	if resp.StatusCode != http.StatusRequestEntityTooLarge {
 		t.Errorf("status = %d, want 413", resp.StatusCode)
+	}
+}
+
+func TestBrowseMediaRendersSurfaceWithoutLoadingBytes(t *testing.T) {
+	srv, root := testServer(t)
+	srv.cfg.Registry = plugins.NewDefaultRegistry()
+	if err := os.WriteFile(filepath.Join(root, "shot.png"), []byte("png"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Create(filepath.Join(root, "huge.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(plugins.MaxMediaBytes + 1); err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	_, body := get(t, ts.URL+"/files/shot.png", nil)
+	for _, want := range []string{`data-region-surface`, `src="/raw/shot.png"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q in page", want)
+		}
+	}
+	_, body = get(t, ts.URL+"/files/huge.png", nil)
+	if strings.Contains(body, "data-region-surface") || !strings.Contains(body, "too large to preview") {
+		t.Errorf("oversized image should show the too-large note without a surface")
 	}
 }
