@@ -60,12 +60,12 @@ type anchorParams struct {
 	StartLine int     `json:"start_line,omitempty" jsonschema:"Line anchor: first line (1-based, inclusive)"`
 	EndLine   int     `json:"end_line,omitempty"   jsonschema:"Line anchor: last line (1-based, inclusive)"`
 	Col       int     `json:"col,omitempty"        jsonschema:"Cell anchor: column (1-based); start_line/end_line give the record's line span"`
-	X         float64 `json:"x,omitempty"          jsonschema:"Region anchor: X offset as a fraction of width"`
-	Y         float64 `json:"y,omitempty"          jsonschema:"Region anchor: Y offset as a fraction of height"`
-	Width     float64 `json:"width,omitempty"      jsonschema:"Region anchor: width as a fraction"`
-	Height    float64 `json:"height,omitempty"     jsonschema:"Region anchor: height as a fraction"`
-	StartTime float64 `json:"start_time,omitempty" jsonschema:"Time/region-time anchor: start in seconds"`
-	EndTime   float64 `json:"end_time,omitempty"   jsonschema:"Time/region-time anchor: end in seconds"`
+	X         float64 `json:"x,omitempty"          jsonschema:"Region/region_time anchor: X offset as a fraction (0-1) of the asset width"`
+	Y         float64 `json:"y,omitempty"          jsonschema:"Region/region_time anchor: Y offset as a fraction (0-1) of the asset height"`
+	Width     float64 `json:"width,omitempty"      jsonschema:"Region/region_time anchor: width as a fraction (0-1); x+width must be <= 1"`
+	Height    float64 `json:"height,omitempty"     jsonschema:"Region/region_time anchor: height as a fraction (0-1); y+height must be <= 1"`
+	StartTime float64 `json:"start_time,omitempty" jsonschema:"Time/region_time anchor: start in seconds (>= 0)"`
+	EndTime   float64 `json:"end_time,omitempty"   jsonschema:"Time/region_time anchor: end in seconds (>= start_time)"`
 }
 
 type createThreadParams struct {
@@ -223,20 +223,26 @@ func parseAnchor(p anchorParams) (store.Anchor, error) {
 		}
 		return store.CellAnchor{StartLine: p.StartLine, EndLine: p.EndLine, Col: p.Col}, nil
 	case "region":
-		return store.RegionAnchor{X: p.X, Y: p.Y, Width: p.Width, Height: p.Height}, nil
+		return validated(store.RegionAnchor{X: p.X, Y: p.Y, Width: p.Width, Height: p.Height})
 	case "time":
-		if p.EndTime < p.StartTime {
-			return nil, fmt.Errorf("time anchor requires end_time >= start_time")
-		}
-		return store.TimeAnchor{StartTime: p.StartTime, EndTime: p.EndTime}, nil
+		return validated(store.TimeAnchor{StartTime: p.StartTime, EndTime: p.EndTime})
 	case "region_time":
-		return store.RegionTimeAnchor{
+		return validated(store.RegionTimeAnchor{
 			X: p.X, Y: p.Y, Width: p.Width, Height: p.Height,
 			StartTime: p.StartTime, EndTime: p.EndTime,
-		}, nil
+		})
 	default:
 		return nil, fmt.Errorf("unknown anchor type %q; must be line, cell, region, time, or region_time", p.Type)
 	}
+}
+
+// validated returns a if its geometry is well-formed, else the store's
+// validation error, which tells the caller what range was violated.
+func validated(a store.Anchor) (store.Anchor, error) {
+	if err := store.ValidateAnchor(a); err != nil {
+		return nil, err
+	}
+	return a, nil
 }
 
 // resolveSnapshot finds the current snapshot for path+content or creates
