@@ -453,3 +453,48 @@ func TestEditAndDeleteComment(t *testing.T) {
 		"body":       "can't edit deleted",
 	})
 }
+
+func TestCreateCellThreadCapturesHeaderAndContext(t *testing.T) {
+	session, st, repo, root := newTestEnv(t)
+	sessID := createSession(t, session, repo.ID, "s")
+	if err := os.WriteFile(filepath.Join(root, "prices.csv"), []byte("id,name,price\n1,apple,0.5\n2,pear,0.7\n3,fig,1.2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	text := callTool(t, session, "create_thread", map[string]any{
+		"session_id": sessID,
+		"file_path":  "prices.csv",
+		"anchor":     map[string]any{"type": "cell", "start_line": 3, "end_line": 3, "col": 3},
+		"body":       "is this price right?",
+	})
+	var created map[string]any
+	if err := json.Unmarshal([]byte(text), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	thread, _, err := st.GetThread(context.Background(), created["id"].(string))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ca, ok := thread.Anchor.(store.CellAnchor)
+	if !ok {
+		t.Fatalf("anchor = %T, want CellAnchor", thread.Anchor)
+	}
+	if ca.StartLine != 3 || ca.Col != 3 || ca.Header != "price" {
+		t.Errorf("anchor = %+v, want line 3 col 3 header price", ca)
+	}
+	if len(ca.ContextBefore) == 0 || len(ca.ContextAfter) == 0 {
+		t.Errorf("context not captured: %+v", ca)
+	}
+}
+
+func TestCreateCellThreadRejectsBadColumn(t *testing.T) {
+	session, _, repo, _ := newTestEnv(t)
+	sessID := createSession(t, session, repo.ID, "s")
+	callToolExpectError(t, session, "create_thread", map[string]any{
+		"session_id": sessID,
+		"file_path":  "main.go",
+		"anchor":     map[string]any{"type": "cell", "start_line": 1, "end_line": 1},
+		"body":       "x",
+	})
+}

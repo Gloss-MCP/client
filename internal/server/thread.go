@@ -171,8 +171,13 @@ func (s *Server) loadThreadViews(ctx context.Context, sessionID string, threads 
 			}
 		}
 		views = append(views, tv)
-		if la, ok := t.Anchor.(store.LineAnchor); ok {
-			for n := la.StartLine; n <= la.EndLine; n++ {
+		switch a := t.Anchor.(type) {
+		case store.LineAnchor:
+			for n := a.StartLine; n <= a.EndLine; n++ {
+				lineSet[n] = true
+			}
+		case store.CellAnchor:
+			for n := a.StartLine; n <= a.EndLine; n++ {
 				lineSet[n] = true
 			}
 		}
@@ -186,7 +191,9 @@ func (s *Server) loadThreadViews(ctx context.Context, sessionID string, threads 
 }
 
 // handleCreateThread creates a thread anchored to a line range in the
-// currently viewed file, from the composer's line selection.
+// currently viewed file, from the composer's selection: a line range, or
+// -- when a column ("col") is also submitted -- a cell of a delimited
+// file.
 func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	sessionID := r.PathValue("sessionID")
@@ -218,19 +225,36 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 	lines := delta.SplitLines(content)
 	ctxBefore, ctxAfter := delta.ExtractContext(lines, startLine, endLine, delta.ContextLines)
 
+	var anchor store.Anchor = store.LineAnchor{
+		StartLine:     startLine,
+		EndLine:       endLine,
+		ContextBefore: ctxBefore,
+		ContextAfter:  ctxAfter,
+	}
+	if colStr := r.FormValue("col"); colStr != "" {
+		col, err := strconv.Atoi(colStr)
+		if err != nil || col < 1 {
+			http.Error(w, "invalid thread parameters", http.StatusBadRequest)
+			return
+		}
+		anchor = store.CellAnchor{
+			StartLine:     startLine,
+			EndLine:       endLine,
+			Col:           col,
+			Header:        delta.HeaderFor(content, col),
+			ContextBefore: ctxBefore,
+			ContextAfter:  ctxAfter,
+		}
+	}
+
 	if _, _, err := s.cfg.Store.CreateThread(ctx, store.CreateThreadParams{
 		SessionID:      sessionID,
 		FileSnapshotID: snap.ID,
-		Anchor: store.LineAnchor{
-			StartLine:     startLine,
-			EndLine:       endLine,
-			ContextBefore: ctxBefore,
-			ContextAfter:  ctxAfter,
-		},
-		CreatedBy:   s.cfg.Author,
-		Body:        body,
-		AuthorType:  store.AuthorHuman,
-		AuthorAgent: s.cfg.Author,
+		Anchor:         anchor,
+		CreatedBy:      s.cfg.Author,
+		Body:           body,
+		AuthorType:     store.AuthorHuman,
+		AuthorAgent:    s.cfg.Author,
 	}); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return

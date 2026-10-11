@@ -51,3 +51,21 @@ func TestUnmarshalAnchorBadJSON(t *testing.T) {
 		t.Fatal("unmarshalAnchor with bad JSON succeeded, want error")
 	}
 }
+
+func TestAnchorLabel(t *testing.T) {
+	for _, tt := range []struct {
+		a    Anchor
+		want string
+	}{
+		{LineAnchor{StartLine: 3, EndLine: 3}, "line 3"},
+		{LineAnchor{StartLine: 3, EndLine: 5}, "line 3-5"},
+		{CellAnchor{StartLine: 4, EndLine: 4, Col: 2, Header: "price"}, "line 4, col 2 (price)"},
+		{CellAnchor{StartLine: 4, EndLine: 6, Col: 1}, "line 4-6, col 1"},
+		{RegionAnchor{}, "region"},
+		{TimeAnchor{StartTime: 1.5, EndTime: 3}, "1.5s-3s"},
+	} {
+		if got := Label(tt.a); got != tt.want {
+			t.Errorf("Label(%#v) = %q, want %q", tt.a, got, tt.want)
+		}
+	}
+}
