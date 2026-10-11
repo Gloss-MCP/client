@@ -32,7 +32,9 @@ func (f *fakeStore) ListActiveLineThreadsForPath(_ context.Context, _, path stri
 		if t.AnchorStatus != store.AnchorActive {
 			continue
 		}
-		if _, ok := t.Anchor.(store.LineAnchor); !ok {
+		switch t.Anchor.(type) {
+		case store.LineAnchor, store.CellAnchor:
+		default:
 			continue
 		}
 		if snap, ok := f.snapshots[t.FileSnapshotID]; ok && snap.Path == path {
@@ -199,5 +201,105 @@ func TestWatcherOrphansOnFileDeletion(t *testing.T) {
 
 	if fs.threads["t1"].AnchorStatus != store.AnchorOrphaned {
 		t.Errorf("status = %q, want orphaned", fs.threads["t1"].AnchorStatus)
+	}
+}
+
+func TestWatcherRemapsCellAnchorWhenColumnInserted(t *testing.T) {
+	dir := t.TempDir()
+	initial := csvOriginal
+	path := filepath.Join(dir, "prices.csv")
+	if err := os.WriteFile(path, []byte(initial), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fs := newFakeStore()
+	fs.addSnapshot(&store.FileSnapshot{ID: "snap1", RepoID: "repo1", Path: "prices.csv", ContentHash: contentHash([]byte(initial))})
+	fs.addThread(&store.Thread{
+		ID: "t1", FileSnapshotID: "snap1", AnchorStatus: store.AnchorActive,
+		Anchor: cellAt(initial, 3, 3), // banana's price
+	})
+
+	w, err := New(dir, "repo1", store.ConnectorLocal, fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ready := make(chan struct{})
+	done := make(chan error, 1)
+	go func() { done <- w.Run(ctx, ready) }()
+	select {
+	case <-ready:
+	case <-time.After(3 * time.Second):
+		t.Fatal("watcher did not become ready")
+	}
+
+	// Insert a sku column before price and a new row at the top.
+	modified := "id,name,sku,price,qty\n0,zero,z0,0.00,0\n1,apple,a1,0.50,10\n2,banana,b2,0.25,20\n3,cherry,c3,4.00,5\n4,date,d4,3.00,7\n5,elder,e5,9.99,1\n"
+	if err := os.WriteFile(path, []byte(modified), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if ca, ok := fs.threads["t1"].Anchor.(store.CellAnchor); ok && ca.StartLine == 4 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	ca, ok := fs.threads["t1"].Anchor.(store.CellAnchor)
+	if !ok {
+		t.Fatal("anchor is not a CellAnchor after remap")
+	}
+	if ca.StartLine != 4 || ca.Col != 4 || ca.Header != "price" {
+		t.Errorf("anchor = %+v, want line 4 col 4 (price)", ca)
+	}
+	if fs.threads["t1"].AnchorStatus != store.AnchorActive {
+		t.Errorf("status = %s, want active", fs.threads["t1"].AnchorStatus)
+	}
+}
+
+func TestWatcherOrphansCellAnchorWhenColumnRemoved(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "prices.csv")
+	if err := os.WriteFile(path, []byte(csvOriginal), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fs := newFakeStore()
+	fs.addSnapshot(&store.FileSnapshot{ID: "snap1", RepoID: "repo1", Path: "prices.csv", ContentHash: contentHash([]byte(csvOriginal))})
+	fs.addThread(&store.Thread{
+		ID: "t1", FileSnapshotID: "snap1", AnchorStatus: store.AnchorActive,
+		Anchor: cellAt(csvOriginal, 3, 3),
+	})
+
+	w, err := New(dir, "repo1", store.ConnectorLocal, fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ready := make(chan struct{})
+	done := make(chan error, 1)
+	go func() { done <- w.Run(ctx, ready) }()
+	select {
+	case <-ready:
+	case <-time.After(3 * time.Second):
+		t.Fatal("watcher did not become ready")
+	}
+
+	if err := os.WriteFile(path, []byte("id,name,qty\n1,apple,10\n2,banana,20\n3,cherry,5\n4,date,7\n5,elder,1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) && fs.threads["t1"].AnchorStatus != store.AnchorOrphaned {
+		time.Sleep(50 * time.Millisecond)
+	}
+	cancel()
+	<-done
+	if fs.threads["t1"].AnchorStatus != store.AnchorOrphaned {
+		t.Errorf("status = %s, want orphaned (price column removed)", fs.threads["t1"].AnchorStatus)
 	}
 }
