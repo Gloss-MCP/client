@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gloss-mcp/client/internal/plugins"
 	"github.com/gloss-mcp/client/internal/store"
 )
 
@@ -265,5 +266,115 @@ func TestCreateThreadRejectsInvalidColumn(t *testing.T) {
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Errorf("col=%q: status = %d, want 400", col, resp.StatusCode)
 		}
+	}
+}
+
+func newImageSession(t *testing.T) (*Server, *httptest.Server, string) {
+	t.Helper()
+	srv, root := testServer(t)
+	srv.cfg.Registry = plugins.NewDefaultRegistry()
+	if err := os.WriteFile(filepath.Join(root, "shot.png"), []byte("png-bytes"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sess, err := srv.cfg.Store.CreateSession(context.Background(), srv.cfg.RepoID, "review", "", testAuthor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+	return srv, ts, sess.ID
+}
+
+func TestCreateRegionThreadStoresRegionAnchor(t *testing.T) {
+	srv, ts, sessID := newImageSession(t)
+	fileURL := ts.URL + "/s/" + sessID + "/files/shot.png"
+	resp, err := http.PostForm(ts.URL+"/s/"+sessID+"/threads", url.Values{
+		"file_path": {"shot.png"}, "x": {"0.1"}, "y": {"0.2"}, "width": {"0.3"}, "height": {"0.4"},
+		"body": {"what is this blob?"}, "return_to": {fileURL},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200 after redirect", resp.StatusCode)
+	}
+	page := readBody(t, resp)
+	if !strings.Contains(page, "what is this blob?") || !strings.Contains(page, "region 10%,20% 30%×40%") {
+		t.Errorf("page missing the thread's comment or region label:\n%s", page)
+	}
+
+	threads, err := srv.cfg.Store.ListThreads(context.Background(), sessID, store.ListThreadsFilter{})
+	if err != nil || len(threads) != 1 {
+		t.Fatalf("threads = %v, err %v", threads, err)
+	}
+	want := store.RegionAnchor{X: 0.1, Y: 0.2, Width: 0.3, Height: 0.4}
+	if threads[0].Anchor != want {
+		t.Errorf("anchor = %#v, want %#v", threads[0].Anchor, want)
+	}
+}
+
+func TestCreateRegionThreadRejectsBadInput(t *testing.T) {
+	_, ts, sessID := newImageSession(t)
+	valid := url.Values{"file_path": {"shot.png"}, "x": {"0.1"}, "y": {"0.1"}, "width": {"0.2"}, "height": {"0.2"}, "body": {"hi"}}
+	with := func(k, v string) url.Values {
+		c := url.Values{}
+		for kk, vv := range valid {
+			c[kk] = vv
+		}
+		c.Set(k, v)
+		return c
+	}
+	for name, form := range map[string]url.Values{
+		"overflow":       with("width", "0.95"),
+		"negative":       with("x", "-0.1"),
+		"zero size":      with("height", "0"),
+		"not a number":   with("y", "abc"),
+		"missing height": with("height", ""),
+		"empty body":     with("body", "  "),
+		"not an image":   with("file_path", "README.md"),
+		"untracked":      with("file_path", "nope.png"),
+		"traversal":      with("file_path", "../../etc/passwd.png"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			resp, err := http.PostForm(ts.URL+"/s/"+sessID+"/threads", form)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = resp.Body.Close() }()
+			if resp.StatusCode < 400 {
+				t.Errorf("status = %d, want a 4xx", resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestLoadThreadViewsReturnsRegionMarks(t *testing.T) {
+	srv, _, sessID := newImageSession(t)
+	ctx := context.Background()
+	snap, err := srv.cfg.Store.CreateFileSnapshot(ctx, srv.cfg.RepoID, "shot.png", "h", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range []store.Anchor{
+		store.RegionAnchor{X: 0.1, Y: 0.1, Width: 0.2, Height: 0.2},
+		store.RegionAnchor{X: 0.5, Y: 0.5, Width: 0.25, Height: 0.25},
+	} {
+		if _, _, err := srv.cfg.Store.CreateThread(ctx, store.CreateThreadParams{
+			SessionID: sessID, FileSnapshotID: snap.ID, Anchor: a, CreatedBy: "x", Body: "b", AuthorType: store.AuthorHuman,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	threads, _ := srv.cfg.Store.ListThreads(ctx, sessID, store.ListThreadsFilter{})
+	_, lines, marks, err := srv.loadThreadViews(ctx, sessID, threads, "/", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lines) != 0 || len(marks) != 2 {
+		t.Fatalf("lines %v marks %v, want no lines and 2 marks", lines, marks)
+	}
+	if marks[0].N != 1 || marks[1].N != 2 || marks[1].X != 0.5 || marks[0].Status != "active" {
+		t.Errorf("marks = %+v", marks)
 	}
 }

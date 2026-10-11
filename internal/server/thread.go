@@ -32,14 +32,33 @@ type sessionPageData struct {
 // pane: either a selected file's code and its threads, or -- when no
 // file is selected -- the session's whole thread list.
 type sessionMainData struct {
-	Session      *store.Session
-	SessionID    string
-	Path         string // empty when no file is selected
-	Views        []plugins.View
-	ThreadLines  []int // line numbers with at least one thread, for gutter highlighting
+	Session     *store.Session
+	SessionID   string
+	Path        string // empty when no file is selected
+	Views       []plugins.View
+	ThreadLines []int // line numbers with at least one thread, for gutter highlighting
+	// Surface is the first view's selection model ("" for line-addressed
+	// text, plugins.SurfaceRegion for images); Marks are the file's
+	// region threads, drawn as overlay boxes on that surface.
+	Surface      string
+	Marks        []mediaMark
 	Threads      []*threadViewData
 	StatusFilter string
 	ReturnTo     string
+}
+
+// mediaMark is a region thread as the UI draws it over a media surface.
+// Geometry is fractions (0-1) of the displayed asset. N is the thread's
+// 1-based position in the panel, shown on the box so the two can be
+// matched by eye.
+type mediaMark struct {
+	ID     string  `json:"id"`
+	N      int     `json:"n"`
+	Status string  `json:"status"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
 }
 
 // threadViewData is one thread rendered in the thread panel, with its
@@ -89,6 +108,9 @@ func (s *Server) handleSessionBrowse(w http.ResponseWriter, r *http.Request) {
 		}
 		main.Path = path
 		main.Views = views
+		if len(views) > 0 {
+			main.Surface = views[0].Surface
+		}
 		main.ReturnTo = fileReturnTo(sessionID, path, statusFilter)
 
 		threads, err := s.cfg.Store.ListThreads(ctx, sessionID, store.ListThreadsFilter{FilePath: path, AnchorStatus: statusFilter})
@@ -96,7 +118,7 @@ func (s *Server) handleSessionBrowse(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		main.Threads, main.ThreadLines, err = s.loadThreadViews(ctx, sessionID, threads, main.ReturnTo, false)
+		main.Threads, main.ThreadLines, main.Marks, err = s.loadThreadViews(ctx, sessionID, threads, main.ReturnTo, false)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -108,7 +130,7 @@ func (s *Server) handleSessionBrowse(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		main.Threads, _, err = s.loadThreadViews(ctx, sessionID, threads, main.ReturnTo, true)
+		main.Threads, _, _, err = s.loadThreadViews(ctx, sessionID, threads, main.ReturnTo, true)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
@@ -148,14 +170,16 @@ func fileReturnTo(sessionID, path string, status store.AnchorStatus) string {
 // reply trees. When includeFilePath is true, each thread's file path is
 // resolved too (the session-wide view, where threads span many files).
 // It also returns the set of line numbers with at least one thread, for
-// gutter highlighting in the single-file view.
-func (s *Server) loadThreadViews(ctx context.Context, sessionID string, threads []*store.Thread, returnTo string, includeFilePath bool) ([]*threadViewData, []int, error) {
+// gutter highlighting in the single-file view, and the region marks to
+// draw over a media surface.
+func (s *Server) loadThreadViews(ctx context.Context, sessionID string, threads []*store.Thread, returnTo string, includeFilePath bool) ([]*threadViewData, []int, []mediaMark, error) {
 	var views []*threadViewData
+	var marks []mediaMark
 	lineSet := map[int]bool{}
 	for _, t := range threads {
 		comments, err := s.cfg.Store.ListComments(ctx, t.ID)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		replyAction := "/s/" + sessionID + "/threads/" + t.ID + "/comments"
 		tv := &threadViewData{Thread: t, Comments: buildCommentTree(comments, replyAction, returnTo)}
@@ -174,6 +198,11 @@ func (s *Server) loadThreadViews(ctx context.Context, sessionID string, threads 
 			for n := a.StartLine; n <= a.EndLine; n++ {
 				lineSet[n] = true
 			}
+		case store.RegionAnchor:
+			marks = append(marks, mediaMark{
+				ID: t.ID, N: len(views), Status: string(t.AnchorStatus),
+				X: a.X, Y: a.Y, Width: a.Width, Height: a.Height,
+			})
 		}
 	}
 	lines := make([]int, 0, len(lineSet))
@@ -181,7 +210,7 @@ func (s *Server) loadThreadViews(ctx context.Context, sessionID string, threads 
 		lines = append(lines, n)
 	}
 	sort.Ints(lines)
-	return views, lines, nil
+	return views, lines, marks, nil
 }
 
 // handleCreateThread creates a thread anchored to a line range in the
@@ -189,7 +218,6 @@ func (s *Server) loadThreadViews(ctx context.Context, sessionID string, threads 
 // -- when a column ("col") is also submitted -- a cell of a delimited
 // file.
 func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	sessionID := r.PathValue("sessionID")
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
@@ -198,6 +226,14 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 
 	path := r.FormValue("file_path")
 	body := strings.TrimSpace(r.FormValue("body"))
+
+	// A region selection on a media surface submits x/y/width/height
+	// (fractions of the asset) instead of a line range.
+	if r.FormValue("x") != "" {
+		s.createRegionThread(w, r, sessionID, path, body)
+		return
+	}
+
 	startLine, errS := strconv.Atoi(r.FormValue("start_line"))
 	endLine, errE := strconv.Atoi(r.FormValue("end_line"))
 	if path == "" || body == "" || errS != nil || errE != nil || startLine < 1 || endLine < startLine {
@@ -206,11 +242,6 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 	}
 
 	content, err := os.ReadFile(filepath.Join(s.cfg.Root, filepath.FromSlash(path)))
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	snap, err := s.resolveFileSnapshot(ctx, path, content)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -241,6 +272,19 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	s.storeThread(w, r, sessionID, path, content, body, anchor)
+}
+
+// storeThread snapshots content for path, creates the human-authored
+// thread with anchor and body, and redirects back to the page the
+// composer was on.
+func (s *Server) storeThread(w http.ResponseWriter, r *http.Request, sessionID, path string, content []byte, body string, anchor store.Anchor) {
+	ctx := r.Context()
+	snap, err := s.resolveFileSnapshot(ctx, path, content)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	if _, _, err := s.cfg.Store.CreateThread(ctx, store.CreateThreadParams{
 		SessionID:      sessionID,
 		FileSnapshotID: snap.ID,
@@ -250,10 +294,49 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 		AuthorType:     store.AuthorHuman,
 		AuthorAgent:    s.cfg.Author,
 	}); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			http.NotFound(w, r)
+			return
+		}
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	redirectBack(w, r, returnTo(r))
+}
+
+// createRegionThread creates a thread anchored to a region of an image.
+// Geometry outside the asset (or non-numeric) is a 400, not a clamp: the
+// UI already clamps, so bad values mean a broken or hostile client.
+func (s *Server) createRegionThread(w http.ResponseWriter, r *http.Request, sessionID, path, body string) {
+	var v [4]float64
+	for i, name := range []string{"x", "y", "width", "height"} {
+		f, err := strconv.ParseFloat(r.FormValue(name), 64)
+		if err != nil {
+			http.Error(w, "invalid thread parameters", http.StatusBadRequest)
+			return
+		}
+		v[i] = f
+	}
+	anchor := store.RegionAnchor{X: v[0], Y: v[1], Width: v[2], Height: v[3]}
+	if path == "" || body == "" || plugins.MediaKindOf(path) != plugins.MediaImage || store.ValidateAnchor(anchor) != nil {
+		http.Error(w, "invalid thread parameters", http.StatusBadRequest)
+		return
+	}
+	paths, err := connector.ListFiles(s.cfg.Root, s.cfg.ConnectorType)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if !containsPath(paths, path) {
+		http.NotFound(w, r)
+		return
+	}
+	content, err := os.ReadFile(filepath.Join(s.cfg.Root, filepath.FromSlash(path)))
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	s.storeThread(w, r, sessionID, path, content, body, anchor)
 }
 
 // resolveFileSnapshot finds the current snapshot of path, creating one on
