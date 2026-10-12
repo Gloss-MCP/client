@@ -25,21 +25,49 @@
     <h1 class="text-3xl font-bold tracking-tight">Install</h1>
     <p>Gloss is a single, CGO-free Go binary with no runtime dependencies.</p>
 
+    <h2>Homebrew</h2>
+    <p>macOS and Linux, amd64 and arm64:</p>
+<pre><code>brew install gloss-mcp/tap/gloss
+gloss -version</code></pre>
+
+    <h2>Install script</h2>
+    <p>macOS and Linux, amd64 and arm64. It downloads the release archive, checks it against the release's
+    <code>checksums.txt</code>, and installs <code>gloss</code> to <code>~/.local/bin</code>.</p>
+<pre><code>curl -fsSL https://gloss-mcp.github.io/client/install.sh | sh</code></pre>
+    <table>
+      <tr><th>Variable</th><th>Meaning</th></tr>
+      <tr><td><code>GLOSS_VERSION</code></td><td>Install this version (for example <code>0.1.0</code>) instead of the latest release.</td></tr>
+      <tr><td><code>GLOSS_INSTALL_DIR</code></td><td>Install here instead of <code>~/.local/bin</code>.</td></tr>
+    </table>
+    <p>Pass them to <code>sh</code>, not <code>curl</code>:
+    <code>curl -fsSL https://gloss-mcp.github.io/client/install.sh | GLOSS_VERSION=0.1.0 sh</code>.
+    Release candidates are never picked as the latest version; ask for one with <code>GLOSS_VERSION</code>.</p>
+    <p>If <code>~/.local/bin</code> is not on your <code>PATH</code>, the script says so.</p>
+
+    <h2>Download a release</h2>
+    <p>Every <a href="https://github.com/gloss-mcp/client/releases">release</a> has archives for Linux, macOS
+    and Windows on amd64 and arm64, named <code>gloss_&lt;version&gt;_&lt;os&gt;_&lt;arch&gt;</code>
+    (<code>.tar.gz</code>, or <code>.zip</code> on Windows), and a <code>checksums.txt</code>.</p>
+<pre><code>sha256sum --check --ignore-missing checksums.txt
+tar -xzf gloss_0.1.0_linux_amd64.tar.gz
+./gloss -version</code></pre>
+    <p>On Windows, extract the <code>.zip</code> and put <code>gloss.exe</code> somewhere on your
+    <code>PATH</code>. There is no Windows installer yet.</p>
+
+    <h2>macOS and Gatekeeper</h2>
+    <p>The binaries are not signed or notarised yet. Homebrew and the install script are not affected. If you
+    download the archive in a browser, macOS quarantines the binary and refuses to run it; clear the flag once:</p>
+<pre><code>xattr -d com.apple.quarantine gloss</code></pre>
+
     <h2>From source</h2>
     <p>Requires Go 1.25+ and <code>make</code>.</p>
 <pre><code>git clone https://github.com/gloss-mcp/client.git
 cd client
 make build
-./gloss --version</code></pre>
+./gloss -version</code></pre>
     <p>Put the resulting <code>gloss</code> binary somewhere on your <code>PATH</code>.
     <code>make build</code> also compiles the Tailwind CSS when it can download the standalone CLI,
     and otherwise falls back to the committed stylesheet.</p>
-
-    <h2>Release builds</h2>
-    <p class="note"><strong>Not released yet.</strong> Tagged releases, the Homebrew tap and the install script are planned (PLAN.md milestone 10). Until then, build from source.</p>
-    <p>Planned targets are darwin, linux and windows on arm64 and amd64, via Homebrew
-    (<code>brew install</code>) and a curl install script. This page will be updated with the real
-    commands when the first release is cut.</p>
 
     <h2>Where Gloss keeps data</h2>
     <p>Per-project state lives in <code>.gloss/gloss.db</code> (SQLite) inside the directory you review.
