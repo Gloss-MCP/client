@@ -22,15 +22,26 @@ MCP. No auth, no account, no internet connection required.
 
 ## Install
 
-Release binaries, a Homebrew tap and an install script are planned
-([PLAN.md](PLAN.md), milestone 10) but not published yet. For now, build
-from source. This needs Go 1.25+ and `make`:
+Homebrew (macOS and Linux):
 
 ```sh
-git clone https://github.com/gloss-mcp/client.git
-cd client
-make build
-./gloss --version
+brew install gloss-mcp/tap/gloss
+```
+
+Or the install script (macOS and Linux, amd64 and arm64):
+
+```sh
+curl -fsSL https://gloss-mcp.github.io/client/install.sh | sh
+```
+
+It verifies the download against the release's `checksums.txt` and installs
+to `~/.local/bin`. Windows users download the `.zip` from the
+[releases page](https://github.com/gloss-mcp/client/releases). More options
+(pinning a version, build from source, macOS Gatekeeper) are on the
+[install page](https://gloss-mcp.github.io/client/install.html).
+
+```sh
+gloss -version
 ```
 
 ## Quickstart
@@ -55,8 +66,8 @@ Flags: `-port` (default 4747, `0` for any free port), `-no-open`,
 ## Formats
 
 Code (syntax highlighted), markdown (rendered and source), JSON, CSV
-(cell-level anchors) and plain text. Image, audio, video and PDF support
-is planned.
+(cell-level anchors) and plain text. Images (regions), audio (time ranges) and video
+(regions and time ranges) are supported; PDF is planned.
 
 ## Documentation
 
