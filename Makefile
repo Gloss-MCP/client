@@ -1,6 +1,8 @@
 BINARY  := gloss
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -X main.version=$(VERSION)
+COMMIT  ?= $(shell git rev-parse --short=7 HEAD 2>/dev/null)
+DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
 TAILWIND_VERSION := 4.3.2
 TAILWIND_BIN      := .tailwindcli/tailwindcss
