@@ -1,0 +1,46 @@
+version: 2
+project_name: gloss
+
+# Release builds need no network: the committed app.css is embedded as-is
+# (see the assets target in the Makefile), so there is no `before` hook.
+
+builds:
+  - id: gloss
+    main: ./cmd/gloss
+    binary: gloss
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .Date }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: gloss
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "gloss_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+# Release notes come from CHANGELOG.md (passed with --release-notes by the
+# release workflow), not from commit messages.
+changelog:
+  disable: true
+
+release:
+  # Drafts are published by hand after the assets have been checked.
+  draft: true
+  # v0.1.0-rc1 and friends are marked as pre-releases.
+  prerelease: auto

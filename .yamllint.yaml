@@ -7,3 +7,7 @@ rules:
   truthy:
     # Allow the bare `on:` key in GitHub workflow files.
     check-keys: false
+
+ignore: |
+  dist/
+  e2e/node_modules/
