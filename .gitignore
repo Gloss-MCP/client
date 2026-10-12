@@ -5,6 +5,7 @@
 /gloss
 dist/
 /.tailwindcli/
+/.goreleaser-bin/
 
 # e2e (Node/Playwright, e2e/ only -- not part of the shipped binary)
 e2e/node_modules/
