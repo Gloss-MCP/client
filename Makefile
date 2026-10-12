@@ -9,6 +9,9 @@ TAILWIND_BIN      := .tailwindcli/tailwindcss
 TAILWIND_CSS_IN   := internal/server/static/css/input.css
 TAILWIND_CSS_OUT  := internal/server/static/css/app.css
 
+GORELEASER_VERSION := 2.12.0
+GORELEASER_BIN     := .goreleaser-bin/goreleaser
+
 GO_IMAGE := golang:1.25-alpine
 
 # Fall back to Docker when local go is absent or pre-1.25
@@ -33,7 +36,7 @@ GO    := $(_DOCKER_RUN) go
 GOFMT := $(_DOCKER_RUN) gofmt
 endif
 
-.PHONY: build test lint e2e run clean assets site
+.PHONY: build test lint e2e run clean assets site goreleaser release-check release-snapshot
 
 # assets compiles the vendored HTMX/Alpine.js + Tailwind CSS pipeline.
 # The Tailwind standalone CLI is downloaded on first use and cached in
@@ -81,6 +84,44 @@ site: assets
 	@test -x "$(TAILWIND_BIN)" || { echo "site: Tailwind CLI unavailable"; exit 1; }
 	$(TAILWIND_BIN) -i site/css/input.css -o site/css/site.css --minify
 
+# goreleaser fetches the pinned GoReleaser release into .goreleaser-bin/
+# (gitignored), verifying the archive against a sha256 pinned here. Unlike
+# assets this fails when the download does: there is no fallback binary.
+goreleaser:
+	@if [ ! -x "$(GORELEASER_BIN)" ]; then \
+		os=$$(uname -s); arch=$$(uname -m); \
+		case "$$os/$$arch" in \
+			Linux/x86_64|Linux/amd64) asset=Linux_x86_64; \
+				sum=0c8915d91a491b1349fe4288eb8541d3876c5187be7f7e614bfc3fe442cf06d1 ;; \
+			Linux/aarch64|Linux/arm64) asset=Linux_arm64; \
+				sum=d36fd20b66431dba7ee4c5ffc6f4d1b37c876d694d65ced1ff4911c143d8e66d ;; \
+			Darwin/x86_64) asset=Darwin_x86_64; \
+				sum=cfdee082f2c3e601561a019b562998ba1bd98f8ca5ee9e4e3ada40138ef2abd1 ;; \
+			Darwin/arm64) asset=Darwin_arm64; \
+				sum=dc483d740634eb41cf5647473fb9055b18bc60fb14192b9bb3ad5c1be4486a16 ;; \
+			*) echo "goreleaser: unsupported platform $$os/$$arch"; exit 1 ;; \
+		esac; \
+		echo "goreleaser: fetching v$(GORELEASER_VERSION) ($$asset)..."; \
+		mkdir -p .goreleaser-bin; \
+		url="https://github.com/goreleaser/goreleaser/releases/download/v$(GORELEASER_VERSION)/goreleaser_$$asset.tar.gz"; \
+		curl -fsSL -o .goreleaser-bin/goreleaser.tar.gz "$$url" \
+			|| { echo "goreleaser: download failed (no network?)"; rm -rf .goreleaser-bin; exit 1; }; \
+		if command -v sha256sum >/dev/null 2>&1; then got=$$(sha256sum .goreleaser-bin/goreleaser.tar.gz | cut -d' ' -f1); \
+		else got=$$(shasum -a 256 .goreleaser-bin/goreleaser.tar.gz | cut -d' ' -f1); fi; \
+		[ "$$got" = "$$sum" ] || { echo "goreleaser: checksum mismatch for $$asset"; rm -rf .goreleaser-bin; exit 1; }; \
+		tar -xzf .goreleaser-bin/goreleaser.tar.gz -C .goreleaser-bin goreleaser; \
+		rm -f .goreleaser-bin/goreleaser.tar.gz; \
+	fi
+
+# release-check validates .goreleaser.yaml.
+release-check: goreleaser
+	$(GORELEASER_BIN) check
+
+# release-snapshot cross-compiles every release target and builds the
+# archives and checksums.txt into dist/ without tagging or publishing.
+release-snapshot: goreleaser
+	$(GORELEASER_BIN) release --snapshot --clean --skip=publish
+
 build: assets
 	$(GO) build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/gloss
 
@@ -102,4 +143,4 @@ run: build
 
 clean:
 	rm -f $(BINARY)
-	rm -rf .tailwindcli
+	rm -rf .tailwindcli .goreleaser-bin dist
