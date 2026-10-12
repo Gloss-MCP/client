@@ -4,6 +4,8 @@ on:
   push:
     branches: [master]
   pull_request:
+  # Reused by release.yml as the gate before a release is built.
+  workflow_call:
 
 permissions:
   contents: read
