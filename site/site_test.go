@@ -5,6 +5,7 @@ package site
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -50,6 +51,23 @@ func TestPages(t *testing.T) {
 			if _, err := os.Stat(target); err != nil {
 				t.Errorf("%s: link %q does not resolve", page, ref)
 			}
+		}
+	}
+}
+
+// TestInstallScriptIsPublishable guards what pages.yml copies: the installer
+// must exist, start with a shebang and be parseable by sh.
+func TestInstallScriptIsPublishable(t *testing.T) {
+	b, err := os.ReadFile("install.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(b), "#!/bin/sh\n") {
+		t.Error("install.sh must start with #!/bin/sh")
+	}
+	if sh, err := exec.LookPath("sh"); err == nil {
+		if out, err := exec.Command(sh, "-n", "install.sh").CombinedOutput(); err != nil {
+			t.Errorf("sh -n install.sh: %v\n%s", err, out)
 		}
 	}
 }
