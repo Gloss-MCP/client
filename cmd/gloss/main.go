@@ -22,9 +22,6 @@ import (
 	"github.com/gloss-mcp/client/internal/store"
 )
 
-// version is set at build time via -ldflags "-X main.version=...".
-var version = "dev"
-
 // defaultPort is gloss's fixed default port, chosen for a stable,
 // bookmarkable URL across runs. Override with -port (0 for an
 // OS-assigned port).
@@ -56,7 +53,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	}
 
 	if *showVersion {
-		fmt.Fprintf(stdout, "gloss %s\n", version)
+		fmt.Fprintln(stdout, versionString())
 		return 0
 	}
 
