@@ -127,8 +127,36 @@ Project-specific overrides and additions:
   descriptions and that relative links resolve. Screenshots in
   `site/img/` are captured by hand from a real run. Update the install
   and plugin pages when milestones 9/10 change them.
+- **Releases are tag-driven and drafted.** A `v*` tag runs
+  `.github/workflows/release.yml`: the full CI gate (`ci.yml` is reusable),
+  then GoReleaser (`.goreleaser.yaml`: CGO-free, linux/darwin/windows ×
+  amd64/arm64, `gloss_<version>_<os>_<arch>` archives, `checksums.txt`)
+  uploads a **draft** GitHub release whose notes are the `CHANGELOG.md`
+  section for the tag. A human publishes the draft; publishing a
+  non-pre-release runs the `tap` job, which renders the Homebrew formula
+  from the published `checksums.txt` (`scripts/render-formula.sh`) and
+  pushes it to `gloss-mcp/homebrew-tap` (secret `HOMEBREW_TAP_TOKEN`).
+  Pre-release tags (`v0.1.0-rc1`) skip the tap and are never "latest".
+  Release builds embed the committed `app.css`, so they need no network.
+  GoReleaser is pinned and checksum-verified in the Makefile and lands in
+  gitignored `.goreleaser-bin/`. Steps and one-time setup:
+  `docs/releasing.md`. macOS signing, SBOM and cosign are deferred.
+- **Version embedding.** `main.version/commit/date` are set by ldflags
+  (GoReleaser and `make build`); `cmd/gloss/version.go` formats
+  `gloss 0.1.0 (commit abc1234, built <UTC>)`, strips a leading `v`, and
+  falls back to `runtime/debug` build info for plain `go build`/`go install`.
+- **CHANGELOG.md is hand-written (Keep a Changelog).** User-visible changes
+  go under `[Unreleased]` in the same PR; the release fails if the tag has
+  no section (`scripts/release-notes.sh`).
+- **`site/install.sh` is the curl installer**, deployed with the Pages
+  site. POSIX sh, verifies sha256 against `checksums.txt`, tested against a
+  fake release server in `site/install_test.go`. `GLOSS_VERSION`,
+  `GLOSS_INSTALL_DIR` and `GLOSS_BASE_URL` (test override) are its only
+  knobs. Windows is a documented zip download, not scripted.
 - **The Makefile is the single entry point.** `make run / test / lint /
-  e2e / build / assets / site`. CI and agents use only these targets. Always
+  e2e / build / assets / site / release-check / release-snapshot` (plus
+  `release*` helpers used by the release workflow). CI and agents use only
+  these targets. Always
   invoke Makefile targets directly — never construct the underlying
   commands by hand.
 - **CLAUDE.md stays current.** When a milestone changes how the repo works,

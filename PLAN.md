@@ -186,13 +186,18 @@ Region/time threads orphan when the file changes (no media remap).
 
 *Exit: region/time anchors round-trip through UI, store, and MCP.*
 
-### 10. Distribution
+### 10. Distribution — complete (awaiting first tag)
 
 GoReleaser: darwin/linux/windows, arm64 + amd64. Tag-driven release
 workflow, Homebrew tap, curl install script, version embedding,
 CHANGELOG.
 
 *Exit: `brew install` → `gloss .` works on a clean machine.*
+
+Everything is built and verified in CI and locally except what needs a
+real tag: the GitHub release, the Homebrew tap push and `brew install`
+on a clean machine. Rehearse with `v0.1.0-rc1` per
+[docs/releasing.md](docs/releasing.md).
 
 ### 11. Website & launch polish — complete
 
@@ -368,3 +373,18 @@ concern.
   0–1 and seconds, validated in the store; no migration was needed.
   Region/time threads orphan when the file content changes. Playwright
   round-trips each type through the UI, store and MCP.
+- 2026-10-12: Milestone 10 built, awaiting the first tag. Before it, a
+  separate fix closed a path traversal in thread creation
+  (`file_path` was read without the tracked-set check). GoReleaser config
+  (six targets, CGO-free, archives + `checksums.txt`), `make
+  release-snapshot` (also a CI job), `gloss -version` with commit and
+  date, `site/install.sh` served from Pages, a tag-driven release
+  workflow (CI gate, draft release with notes from the hand-written
+  `CHANGELOG.md`, post-publish Homebrew tap job), and real install docs
+  replacing the "pending" notes from milestone 11. Deviations: the
+  formula is rendered by `scripts/render-formula.sh` rather than
+  GoReleaser's `brews`, so it is pushed only after the draft is published
+  and from the published checksums. Deferred: macOS signing/notarisation,
+  SBOM and cosign, a Windows installer. Not verifiable without a tag:
+  the draft release, tap push, `brew install`, live `curl | sh`. The
+  `tap` repo and `HOMEBREW_TAP_TOKEN` must be created by hand.
