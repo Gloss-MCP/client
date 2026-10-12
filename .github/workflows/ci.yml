@@ -69,3 +69,20 @@ jobs:
         run: make build
       - name: e2e
         run: make e2e
+
+  release-snapshot:
+    name: GoReleaser snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.x"
+      - name: Check config
+        run: make release-check
+      - name: Snapshot build
+        run: make release-snapshot
+      - name: List artifacts
+        run: ls -l dist/*.tar.gz dist/*.zip dist/checksums.txt
