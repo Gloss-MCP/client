@@ -463,3 +463,58 @@ func TestCreateRegionTimeThreadStoresAnchorAndRendersVideoPane(t *testing.T) {
 		t.Fatalf("threads = %+v", threads)
 	}
 }
+
+func TestCreateThreadRejectsUntrackedPaths(t *testing.T) {
+	srv, _ := testServer(t)
+	ctx := context.Background()
+	sess, err := srv.cfg.Store.CreateSession(ctx, srv.cfg.RepoID, "review", "", testAuthor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A readable file outside the root, one ignored via .glossignore, and
+	// one that simply is not there.
+	outside := filepath.Join(filepath.Dir(srv.cfg.Root), "outside-secret.txt")
+	t.Cleanup(func() { _ = os.Remove(outside) })
+	if err := os.WriteFile(outside, []byte("top secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srv.cfg.Root, "ignored.txt"), []byte("hidden\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srv.cfg.Root, ".glossignore"), []byte("ignored.txt\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
+	for name, path := range map[string]string{
+		"traversal": "../outside-secret.txt",
+		"absolute":  outside,
+		"ignored":   "ignored.txt",
+		"missing":   "nope.txt",
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, extra := range []url.Values{{}, {"col": {"1"}}} {
+				form := url.Values{"file_path": {path}, "start_line": {"1"}, "end_line": {"1"}, "body": {"x"}}
+				for k, v := range extra {
+					form[k] = v
+				}
+				resp, err := http.PostForm(ts.URL+"/s/"+sess.ID+"/threads", form)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_ = resp.Body.Close()
+				if resp.StatusCode != http.StatusNotFound {
+					t.Errorf("status = %d, want 404", resp.StatusCode)
+				}
+			}
+		})
+	}
+	threads, err := srv.cfg.Store.ListThreads(ctx, sess.ID, store.ListThreadsFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(threads) != 0 {
+		t.Errorf("created %d threads from rejected requests, want 0", len(threads))
+	}
+}

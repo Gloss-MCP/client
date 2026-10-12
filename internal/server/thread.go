@@ -256,6 +256,9 @@ func (s *Server) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !s.requireTracked(w, r, path) {
+		return
+	}
 	content, err := os.ReadFile(filepath.Join(s.cfg.Root, filepath.FromSlash(path)))
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -359,13 +362,7 @@ func (s *Server) createMediaThread(w http.ResponseWriter, r *http.Request, sessi
 		http.Error(w, "invalid thread parameters", http.StatusBadRequest)
 		return
 	}
-	paths, err := connector.ListFiles(s.cfg.Root, s.cfg.ConnectorType)
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if !containsPath(paths, path) {
-		http.NotFound(w, r)
+	if !s.requireTracked(w, r, path) {
 		return
 	}
 	content, err := os.ReadFile(filepath.Join(s.cfg.Root, filepath.FromSlash(path)))
@@ -374,6 +371,24 @@ func (s *Server) createMediaThread(w http.ResponseWriter, r *http.Request, sessi
 		return
 	}
 	s.storeThread(w, r, sessionID, path, content, body, anchor)
+}
+
+// requireTracked reports whether path is in the tracked file set, writing
+// a 404 (or 500 if the walk fails) when it is not. Handlers that read a
+// client-supplied file_path must call it first: the path is joined onto
+// the root unvalidated otherwise, so "../" or an ignored file would be
+// read from disk.
+func (s *Server) requireTracked(w http.ResponseWriter, r *http.Request, path string) bool {
+	paths, err := connector.ListFiles(s.cfg.Root, s.cfg.ConnectorType)
+	if err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return false
+	}
+	if !containsPath(paths, path) {
+		http.NotFound(w, r)
+		return false
+	}
+	return true
 }
 
 // resolveFileSnapshot finds the current snapshot of path, creating one on
