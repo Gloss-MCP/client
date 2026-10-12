@@ -36,7 +36,7 @@ GO    := $(_DOCKER_RUN) go
 GOFMT := $(_DOCKER_RUN) gofmt
 endif
 
-.PHONY: build test lint e2e run clean assets site goreleaser release-check release-snapshot
+.PHONY: build test lint e2e run clean assets site goreleaser release-check release-snapshot release release-notes release-formula
 
 # assets compiles the vendored HTMX/Alpine.js + Tailwind CSS pipeline.
 # The Tailwind standalone CLI is downloaded on first use and cached in
@@ -121,6 +121,24 @@ release-check: goreleaser
 # archives and checksums.txt into dist/ without tagging or publishing.
 release-snapshot: goreleaser
 	$(GORELEASER_BIN) release --snapshot --clean --skip=publish
+
+# release-notes prints the CHANGELOG.md section for VERSION; it fails when
+# there is none, so a tag cannot ship without notes.
+release-notes:
+	@test -n "$(VERSION_TAG)" || { echo "release-notes: set VERSION_TAG, e.g. VERSION_TAG=v0.1.0"; exit 1; }
+	@sh scripts/release-notes.sh "$(VERSION_TAG)"
+
+# release-formula renders the Homebrew formula for VERSION_TAG from a
+# published release's checksums.txt (SUMS).
+release-formula:
+	@test -n "$(VERSION_TAG)" && test -n "$(SUMS)" || { echo "release-formula: set VERSION_TAG and SUMS"; exit 1; }
+	@sh scripts/render-formula.sh "$(VERSION_TAG)" "$(SUMS)"
+
+# release builds and uploads a DRAFT GitHub release for the checked-out tag
+# (CI only: needs GITHUB_TOKEN). NOTES is the release-notes file.
+release: goreleaser
+	@test -n "$(NOTES)" || { echo "release: set NOTES to a release-notes file"; exit 1; }
+	$(GORELEASER_BIN) release --clean --release-notes="$(NOTES)"
 
 build: assets
 	$(GO) build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/gloss
