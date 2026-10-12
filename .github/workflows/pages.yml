@@ -39,6 +39,7 @@ jobs:
         run: |
           mkdir _site
           cp site/*.html _site/
+          cp site/install.sh _site/
           mkdir _site/css
           cp site/css/site.css _site/css/
           if [ -d site/img ]; then cp -r site/img _site/img; fi
