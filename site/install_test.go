@@ -26,6 +26,9 @@ type fakeRelease struct {
 	versions []string
 	latest   string
 	badSum   bool
+	// noLatest mimics a repo with no published non-pre-release: GitHub
+	// redirects /releases/latest to the releases list, not a tag page.
+	noLatest bool
 }
 
 func (f fakeRelease) archiveName(version string) string {
@@ -59,7 +62,14 @@ func (f fakeRelease) handler(t *testing.T) http.Handler {
 	t.Helper()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/releases/latest", func(w http.ResponseWriter, r *http.Request) {
+		if f.noLatest {
+			http.Redirect(w, r, "/releases", http.StatusFound)
+			return
+		}
 		http.Redirect(w, r, "/releases/tag/v"+f.latest, http.StatusFound)
+	})
+	mux.HandleFunc("/releases", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("releases list"))
 	})
 	mux.HandleFunc("/releases/tag/", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("release page"))
@@ -162,6 +172,28 @@ func TestInstallScriptRejectsBadChecksum(t *testing.T) {
 	}
 	if _, statErr := os.Stat(filepath.Join(dir, "gloss")); statErr == nil {
 		t.Error("binary was installed despite the checksum mismatch")
+	}
+}
+
+func TestInstallScriptNoPublishedRelease(t *testing.T) {
+	rel := fakeRelease{versions: []string{"0.1.0-rc1"}, noLatest: true}
+	srv := httptest.NewServer(rel.handler(t))
+	defer srv.Close()
+
+	dir, out, err := runInstall(t, srv, "")
+	if err == nil {
+		t.Fatalf("install succeeded with no published release:\n%s", out)
+	}
+	if !strings.Contains(out, "no release has been published") || strings.Contains(out, "installing gloss") {
+		t.Errorf("want a clear no-release error before any download:\n%s", out)
+	}
+	if _, statErr := os.Stat(filepath.Join(dir, "gloss")); statErr == nil {
+		t.Error("binary was installed")
+	}
+
+	// A pinned pre-release still installs: it does not need "latest".
+	if _, out, err := runInstall(t, srv, "", "GLOSS_VERSION=0.1.0-rc1"); err != nil {
+		t.Errorf("pinned pre-release failed: %v\n%s", err, out)
 	}
 }
 
