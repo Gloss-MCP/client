@@ -46,8 +46,12 @@ else
   # "latest", so a default install never picks a release candidate.
   final="$(curl -fsSL -o /dev/null -w '%{url_effective}' "$BASE_URL/latest")" ||
     die "could not resolve the latest release from $BASE_URL/latest"
-  tag="${final##*/}"
-  [ -n "$tag" ] && [ "$tag" != "latest" ] || die "could not determine the latest version from $final"
+  # With no published (non-pre-release) release, GitHub redirects /latest to
+  # the releases list instead of a tag page.
+  case "$final" in
+    */tag/*) tag="${final##*/}" ;;
+    *) die "no release has been published yet at $BASE_URL (to try a pre-release, set GLOSS_VERSION)" ;;
+  esac
   version="${tag#v}"
 fi
 
@@ -58,7 +62,8 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
 say "installing gloss $version ($os/$arch)"
-curl -fsSL -o "$tmp/$archive" "$download/$archive" || die "download failed: $download/$archive"
+curl -fsSL -o "$tmp/$archive" "$download/$archive" ||
+  die "download failed: $download/$archive (is v$version published? draft releases are not downloadable)"
 curl -fsSL -o "$tmp/checksums.txt" "$download/checksums.txt" || die "download failed: $download/checksums.txt"
 
 want="$(awk -v f="$archive" '$2 == f { print $1 }' "$tmp/checksums.txt")"
