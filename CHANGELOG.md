@@ -8,7 +8,7 @@ for people reading the commit log.
 
 ## [Unreleased]
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-10-18
 
 First public release: a single, CGO-free binary. Run `gloss .` in a
 directory to get a localhost web UI and an MCP server backed by SQLite. No
