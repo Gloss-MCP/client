@@ -26,6 +26,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Gloss — {{.RepoName}} — {{.Session.Name}}</title>
+<script src="/static/js/theme.js"></script>
 <link rel="stylesheet" href="/static/css/app.css">
 <script src="/static/vendor/htmx.min.js"></script>
 <script defer src="/static/js/gloss.js"></script>
@@ -36,6 +37,7 @@
     <div class="font-semibold mb-2">{{.RepoName}}</div>
     {{template "sessionSwitcher" .}}
     {{template "treeChildren" (treeCtx .Tree (print "/s/" .Session.ID) "#session-main")}}
+    {{template "themePicker"}}
   </nav>
   <div id="session-main" class="flex-1 flex flex-col overflow-hidden">
     {{template "sessionMain" .Main}}
