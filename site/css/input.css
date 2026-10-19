@@ -2,8 +2,12 @@
 
 @source "../*.html";
 
+/* Dark mode keys off <html data-theme="dark">, set by js/theme.js. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @layer base {
-  html { scroll-behavior: smooth; color-scheme: light dark; }
+  html { scroll-behavior: smooth; }
+  html[data-theme="dark"] { color-scheme: dark; }
 }
 
 /* Prose-ish defaults for hand-written doc pages, scoped to .doc. */

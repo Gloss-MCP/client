@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
+<script src="js/theme.js"></script>
 <title>MCP setup — Gloss</title>
 <meta name="description" content="Connect Claude Code or another MCP client to Gloss.">
 <link rel="stylesheet" href="css/site.css">
@@ -12,6 +13,7 @@
   <header class="border-b border-gray-200 dark:border-gray-800">
     <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-4">
       <a href="index.html" class="text-lg font-bold tracking-tight">Gloss</a>
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
       <nav class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
       <a href="index.html" class="hover:text-indigo-700 dark:hover:text-indigo-300">Home</a>
       <a href="install.html" class="hover:text-indigo-700 dark:hover:text-indigo-300">Install</a>
@@ -20,6 +22,13 @@
       <a href="plugins.html" class="hover:text-indigo-700 dark:hover:text-indigo-300">Plugins</a>
       <a href="https://github.com/gloss-mcp/client" class="hover:text-indigo-700 dark:hover:text-indigo-300">GitHub</a>
       </nav>
+      <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400" role="group" aria-label="Colour theme">
+        <span>Theme</span>
+        <button type="button" data-theme-choice="light" aria-pressed="false" class="hover:text-indigo-700 dark:hover:text-indigo-300 aria-pressed:font-semibold aria-pressed:text-gray-900 dark:aria-pressed:text-gray-100">Light</button>
+        <button type="button" data-theme-choice="dark" aria-pressed="false" class="hover:text-indigo-700 dark:hover:text-indigo-300 aria-pressed:font-semibold aria-pressed:text-gray-900 dark:aria-pressed:text-gray-100">Dark</button>
+        <button type="button" data-theme-choice="system" aria-pressed="false" class="hover:text-indigo-700 dark:hover:text-indigo-300 aria-pressed:font-semibold aria-pressed:text-gray-900 dark:aria-pressed:text-gray-100">System</button>
+      </div>
+      </div>
     </div>
   </header>
   <main class="mx-auto max-w-4xl px-4 py-10 doc">

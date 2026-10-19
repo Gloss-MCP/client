@@ -117,14 +117,15 @@
    overlay layer takes the pointer instead. */
 .gloss-video-surface.gloss-drawing .gloss-region-layer { pointer-events: auto; }
 
-/* Dark mode: follows the OS (prefers-color-scheme), no toggle. The templates
+/* Dark mode: theme.js sets data-theme="light|dark" on <html> from the user's
+   choice (light, dark or system; system resolves via prefers-color-scheme).
+   Everything below hangs off [data-theme="dark"]. The templates
    and plugins only use Tailwind's gray scale plus white and a few accents, so
    rather than a dark: variant on every class the palette variables are
    redefined here: gray is inverted (gray-900 text becomes near-white, white
    surfaces become near-black) and the accents are re-tinted. Anything new
    built from these utilities gets dark mode for free. */
-@media (prefers-color-scheme: dark) {
-  :root {
+  :root[data-theme="dark"] {
     color-scheme: dark;
     --color-white: oklch(16% 0.02 264);
     --color-gray-50: oklch(21% 0.03 264.7);
@@ -147,7 +148,7 @@
     --color-yellow-400: oklch(68% 0.14 95);
     --color-yellow-700: oklch(84% 0.14 95);
     --color-red-600: oklch(72% 0.17 25);
-  }
+
 
   /* Syntax highlighting (chroma "github-dark" style). */
   /* Keyword */ .gloss-code .k { color: #ff7b72 }
@@ -237,4 +238,4 @@
   .gloss-mark, .gloss-time-mark { color: #fcd34d; border-color: #f59e0b; }
   .gloss-mark-resolved, .gloss-time-mark-resolved { color: #9ca3af; border-color: #6b7280; }
   .gloss-region-sel, .gloss-thread-flash { border-color: #60a5fa; outline-color: #60a5fa; }
-}
+  }
