@@ -5,3 +5,7 @@ MD013: false
 
 # House style is compact table pipes (|---|), which this rule rejects.
 MD060: false
+
+# Keep a Changelog repeats "### Added" / "### Fixed" under every release.
+MD024:
+  siblings_only: true
