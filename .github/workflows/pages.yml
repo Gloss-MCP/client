@@ -42,6 +42,7 @@ jobs:
           cp site/install.sh _site/
           mkdir _site/css
           cp site/css/site.css _site/css/
+          cp -r site/js _site/js
           if [ -d site/img ]; then cp -r site/img _site/img; fi
       - uses: actions/upload-pages-artifact@v3
         with:

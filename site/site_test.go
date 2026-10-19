@@ -1,6 +1,6 @@
 // Package site holds the static docs site. The test checks it can be
 // published as-is: every page has a title and description, and every
-// relative link resolves to a file that exists.
+// relative link resolves to a file that exists and is staged by pages.yml.
 package site
 
 import (
@@ -27,6 +27,13 @@ func TestPages(t *testing.T) {
 	if err != nil || len(pages) == 0 {
 		t.Fatalf("no pages found: %v", err)
 	}
+	// A link that resolves in the checkout still 404s in production unless
+	// the deploy workflow copies it into the published artifact.
+	wf, err := os.ReadFile("../.github/workflows/pages.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow := string(wf)
 	for _, page := range pages {
 		b, err := os.ReadFile(page)
 		if err != nil {
@@ -50,6 +57,9 @@ func TestPages(t *testing.T) {
 			}
 			if _, err := os.Stat(target); err != nil {
 				t.Errorf("%s: link %q does not resolve", page, ref)
+			}
+			if dir, _, ok := strings.Cut(target, "/"); ok && !strings.Contains(workflow, "site/"+dir) {
+				t.Errorf("%s: %q is not staged by pages.yml (no site/%s)", page, ref, dir)
 			}
 		}
 	}
