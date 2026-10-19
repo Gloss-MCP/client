@@ -10,8 +10,9 @@ for people reading the commit log.
 
 ### Added
 
-- Dark mode for the web UI and the docs site. Both follow your OS or browser
-  colour scheme automatically.
+- Dark mode for the web UI and the docs site, with a Light / Dark / System
+  picker. System (the default) follows your OS or browser colour scheme; your
+  choice is remembered in the browser.
 
 ## [0.1.0] - 2026-10-18
 
