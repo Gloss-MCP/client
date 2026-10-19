@@ -8,6 +8,11 @@ for people reading the commit log.
 
 ## [Unreleased]
 
+### Added
+
+- Dark mode for the web UI and the docs site. Both follow your OS or browser
+  colour scheme automatically.
+
 ## [0.1.0] - 2026-10-18
 
 First public release: a single, CGO-free binary. Run `gloss .` in a

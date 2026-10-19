@@ -75,6 +75,17 @@ Project-specific overrides and additions:
   `clientInfo.name` from the MCP initialize handshake. `.mcp.json` at the
   repo root registers `http://localhost:4747/mcp` so Claude Code in this
   repo can read and reply through the UI live (dogfooding from milestone 6).
+- **Dark mode follows `prefers-color-scheme`; there is no toggle.** In the
+  app, the `@media (prefers-color-scheme: dark)` block at the end of
+  `internal/server/static/css/input.css` redefines Tailwind's palette
+  variables (gray scale inverted, white and the few accent colours
+  re-tinted), so templates, plugin-generated HTML and classes toggled in
+  `gloss.js` need no `dark:` variants — use gray/white utilities and the
+  accents already remapped there. Hand-written `.gloss-*` CSS and the chroma
+  theme (`github-dark`) get explicit overrides in the same block; a new
+  `.gloss-*` rule with a hard-coded colour needs one too. The site (`site/`)
+  is the opposite: explicit `dark:` variants, because its code blocks stay
+  dark in both modes. Pages carry `<meta name="color-scheme">`.
 - **Format plugins live in `internal/plugins/`** (code via chroma,
   markdown via goldmark, json, csv; plaintext is the catch-all).
   `NewDefaultRegistry()` order is precedence — specific formats before
