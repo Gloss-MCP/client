@@ -24,13 +24,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Gloss — {{.RepoName}} — {{.Session.Name}}</title>
 <link rel="stylesheet" href="/static/css/app.css">
 <script src="/static/vendor/htmx.min.js"></script>
 <script defer src="/static/js/gloss.js"></script>
 <script defer src="/static/vendor/alpine.min.js"></script>
 </head>
-<body class="h-screen flex text-sm text-gray-900 antialiased">
+<body class="h-screen flex bg-white text-sm text-gray-900 antialiased">
   <nav id="tree" class="w-64 shrink-0 overflow-y-auto border-r border-gray-200 p-3">
     <div class="font-semibold mb-2">{{.RepoName}}</div>
     {{template "sessionSwitcher" .}}

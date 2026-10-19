@@ -116,3 +116,125 @@
 /* Native <video controls> swallow pointer down/up, so while drawing the
    overlay layer takes the pointer instead. */
 .gloss-video-surface.gloss-drawing .gloss-region-layer { pointer-events: auto; }
+
+/* Dark mode: follows the OS (prefers-color-scheme), no toggle. The templates
+   and plugins only use Tailwind's gray scale plus white and a few accents, so
+   rather than a dark: variant on every class the palette variables are
+   redefined here: gray is inverted (gray-900 text becomes near-white, white
+   surfaces become near-black) and the accents are re-tinted. Anything new
+   built from these utilities gets dark mode for free. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-white: oklch(16% 0.02 264);
+    --color-gray-50: oklch(21% 0.03 264.7);
+    --color-gray-100: oklch(24% 0.033 257);
+    --color-gray-200: oklch(30% 0.033 257);
+    --color-gray-300: oklch(37.3% 0.034 259.7);
+    --color-gray-400: oklch(62% 0.025 261);
+    --color-gray-500: oklch(72% 0.02 261);
+    --color-gray-600: oklch(80% 0.015 260);
+    --color-gray-700: oklch(87.2% 0.01 258);
+    --color-gray-800: oklch(92.8% 0.006 264.5);
+    --color-gray-900: oklch(96.7% 0.003 264.5);
+    --color-gray-950: oklch(98.5% 0.002 247.8);
+    --color-blue-50: oklch(28% 0.07 255);
+    --color-blue-600: oklch(72% 0.14 255);
+    --color-blue-700: oklch(78% 0.12 255);
+    --color-amber-50: oklch(30% 0.06 85);
+    --color-amber-700: oklch(80% 0.14 80);
+    --color-yellow-50: oklch(30% 0.06 95);
+    --color-yellow-400: oklch(68% 0.14 95);
+    --color-yellow-700: oklch(84% 0.14 95);
+    --color-red-600: oklch(72% 0.17 25);
+  }
+
+  /* Syntax highlighting (chroma "github-dark" style). */
+  /* Keyword */ .gloss-code .k { color: #ff7b72 }
+  /* KeywordConstant */ .gloss-code .kc { color: #79c0ff }
+  /* KeywordDeclaration */ .gloss-code .kd { color: #ff7b72 }
+  /* KeywordNamespace */ .gloss-code .kn { color: #ff7b72 }
+  /* KeywordPseudo */ .gloss-code .kp { color: #79c0ff }
+  /* KeywordReserved */ .gloss-code .kr { color: #ff7b72 }
+  /* KeywordType */ .gloss-code .kt { color: #ff7b72 }
+  /* NameClass */ .gloss-code .nc { color: #f0883e; font-weight: bold }
+  /* NameConstant */ .gloss-code .no { color: #79c0ff; font-weight: bold }
+  /* NameDecorator */ .gloss-code .nd { color: #d2a8ff; font-weight: bold }
+  /* NameEntity */ .gloss-code .ni { color: #ffa657 }
+  /* NameException */ .gloss-code .ne { color: #f0883e; font-weight: bold }
+  /* NameLabel */ .gloss-code .nl { color: #79c0ff; font-weight: bold }
+  /* NameNamespace */ .gloss-code .nn { color: #ff7b72 }
+  /* NameProperty */ .gloss-code .py { color: #79c0ff }
+  /* NameTag */ .gloss-code .nt { color: #7ee787 }
+  /* NameVariable */ .gloss-code .nv { color: #79c0ff }
+  /* NameVariableClass */ .gloss-code .vc { color: #79c0ff }
+  /* NameVariableGlobal */ .gloss-code .vg { color: #79c0ff }
+  /* NameVariableInstance */ .gloss-code .vi { color: #79c0ff }
+  /* NameVariableMagic */ .gloss-code .vm { color: #79c0ff }
+  /* NameFunction */ .gloss-code .nf { color: #d2a8ff; font-weight: bold }
+  /* NameFunctionMagic */ .gloss-code .fm { color: #d2a8ff; font-weight: bold }
+  /* Literal */ .gloss-code .l { color: #a5d6ff }
+  /* LiteralDate */ .gloss-code .ld { color: #79c0ff }
+  /* LiteralString */ .gloss-code .s { color: #a5d6ff }
+  /* LiteralStringAffix */ .gloss-code .sa { color: #79c0ff }
+  /* LiteralStringBacktick */ .gloss-code .sb { color: #a5d6ff }
+  /* LiteralStringChar */ .gloss-code .sc { color: #a5d6ff }
+  /* LiteralStringDelimiter */ .gloss-code .dl { color: #79c0ff }
+  /* LiteralStringDoc */ .gloss-code .sd { color: #a5d6ff }
+  /* LiteralStringDouble */ .gloss-code .s2 { color: #a5d6ff }
+  /* LiteralStringEscape */ .gloss-code .se { color: #79c0ff }
+  /* LiteralStringHeredoc */ .gloss-code .sh { color: #79c0ff }
+  /* LiteralStringInterpol */ .gloss-code .si { color: #a5d6ff }
+  /* LiteralStringOther */ .gloss-code .sx { color: #a5d6ff }
+  /* LiteralStringRegex */ .gloss-code .sr { color: #79c0ff }
+  /* LiteralStringSingle */ .gloss-code .s1 { color: #a5d6ff }
+  /* LiteralStringSymbol */ .gloss-code .ss { color: #a5d6ff }
+  /* LiteralNumber */ .gloss-code .m { color: #a5d6ff }
+  /* LiteralNumberBin */ .gloss-code .mb { color: #a5d6ff }
+  /* LiteralNumberFloat */ .gloss-code .mf { color: #a5d6ff }
+  /* LiteralNumberHex */ .gloss-code .mh { color: #a5d6ff }
+  /* LiteralNumberInteger */ .gloss-code .mi { color: #a5d6ff }
+  /* LiteralNumberIntegerLong */ .gloss-code .il { color: #a5d6ff }
+  /* LiteralNumberOct */ .gloss-code .mo { color: #a5d6ff }
+  /* Operator */ .gloss-code .o { color: #ff7b72; font-weight: bold }
+  /* OperatorWord */ .gloss-code .ow { color: #ff7b72; font-weight: bold }
+  /* OperatorReserved */ .gloss-code .or { color: #ff7b72; font-weight: bold }
+  /* Comment */ .gloss-code .c { color: #8b949e; font-style: italic }
+  /* CommentHashbang */ .gloss-code .ch { color: #8b949e; font-style: italic }
+  /* CommentMultiline */ .gloss-code .cm { color: #8b949e; font-style: italic }
+  /* CommentSingle */ .gloss-code .c1 { color: #8b949e; font-style: italic }
+  /* CommentSpecial */ .gloss-code .cs { color: #8b949e; font-weight: bold; font-style: italic }
+  /* CommentPreproc */ .gloss-code .cp { color: #8b949e; font-weight: bold; font-style: italic }
+  /* CommentPreprocFile */ .gloss-code .cpf { color: #8b949e; font-weight: bold; font-style: italic }
+  /* GenericDeleted */ .gloss-code .gd { color: #ffa198; background-color: #490202 }
+  /* GenericEmph */ .gloss-code .ge { font-style: italic }
+  /* GenericError */ .gloss-code .gr { color: #ffa198 }
+  /* GenericHeading */ .gloss-code .gh { color: #79c0ff; font-weight: bold }
+  /* GenericInserted */ .gloss-code .gi { color: #56d364; background-color: #0f5323 }
+  /* GenericOutput */ .gloss-code .go { color: #8b949e }
+  /* GenericPrompt */ .gloss-code .gp { color: #8b949e }
+  /* GenericStrong */ .gloss-code .gs { font-weight: bold }
+  /* GenericSubheading */ .gloss-code .gu { color: #79c0ff }
+  /* GenericTraceback */ .gloss-code .gt { color: #ff7b72 }
+  /* GenericUnderline */ .gloss-code .gl { text-decoration: underline }
+  /* TextWhitespace */ .gloss-code .w { color: #6e7681 }
+  /* Tokens the light theme colours but github-dark leaves to the base text colour. */
+  .gloss-code .na, .gloss-code .nx, .gloss-code .p { color: #e6edf3 }
+  .gloss-code .nb { color: #d2a8ff }
+  .gloss-code .bp { color: #8b949e }
+  .gloss-code .gd { background-color: #490202 }
+  .gloss-code .gi { background-color: #04260f }
+
+  .gloss-md-block:hover, .gloss-csv-row:hover { background-color: var(--color-gray-50); }
+  .gloss-md blockquote { border-left-color: #4b5563; color: #9ca3af; }
+  .gloss-md code, .gloss-md pre, .gloss-csv th { background-color: var(--color-gray-100); }
+  .gloss-md th, .gloss-md td { border-color: #4b5563; }
+  .gloss-md a { color: #60a5fa; }
+  .gloss-md hr { border-color: #4b5563; }
+  .gloss-csv th, .gloss-csv td { border-color: var(--color-gray-200); }
+  .gloss-csv-cell:hover { outline-color: #3b82f6; }
+  .gloss-cell-selected { outline-color: #60a5fa; background-color: #1e3a5f; }
+  .gloss-mark, .gloss-time-mark { color: #fcd34d; border-color: #f59e0b; }
+  .gloss-mark-resolved, .gloss-time-mark-resolved { color: #9ca3af; border-color: #6b7280; }
+  .gloss-region-sel, .gloss-thread-flash { border-color: #60a5fa; outline-color: #60a5fa; }
+}
