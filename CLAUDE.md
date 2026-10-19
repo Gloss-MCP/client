@@ -140,8 +140,10 @@ Project-specific overrides and additions:
   which is gitignored (unlike `app.css`) and built by
   `.github/workflows/pages.yml`, which deploys to GitHub Pages on pushes
   to `master` that touch `site/`. It is a project site under `/client/`,
-  so every link is relative. `site/site_test.go` checks titles,
-  descriptions and that relative links resolve. Screenshots in
+  so every link is relative. `pages.yml` stages files explicitly (html,
+  `install.sh`, `css/site.css`, `js/`, `img/`): a new asset directory needs
+  a `cp` line there. `site/site_test.go` checks titles, descriptions, that
+  relative links resolve and that `pages.yml` stages what they point at. Screenshots in
   `site/img/` are captured by hand from a real run. Update the install
   and plugin pages when milestones 9/10 change them.
 - **Releases are tag-driven and drafted.** A `v*` tag runs
