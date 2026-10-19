@@ -3,75 +3,76 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Gloss — async review for AI-generated content</title>
 <meta name="description" content="Read AI-generated files in your own time, comment on specific lines, and feed the threads back to the AI over MCP.">
 <link rel="stylesheet" href="css/site.css">
 </head>
-<body class="min-h-screen bg-white text-gray-900 antialiased">
-  <header class="border-b border-gray-200">
+<body class="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 antialiased">
+  <header class="border-b border-gray-200 dark:border-gray-800">
     <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-4">
       <a href="index.html" class="text-lg font-bold tracking-tight">Gloss</a>
-      <nav class="flex flex-wrap gap-4 text-sm text-gray-600">
-      <a href="index.html" class="hover:text-indigo-700 font-semibold text-gray-900">Home</a>
-      <a href="install.html" class="hover:text-indigo-700">Install</a>
-      <a href="quickstart.html" class="hover:text-indigo-700">Quickstart</a>
-      <a href="mcp.html" class="hover:text-indigo-700">MCP setup</a>
-      <a href="plugins.html" class="hover:text-indigo-700">Plugins</a>
-      <a href="https://github.com/gloss-mcp/client" class="hover:text-indigo-700">GitHub</a>
+      <nav class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+      <a href="index.html" class="hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold text-gray-900 dark:text-gray-100">Home</a>
+      <a href="install.html" class="hover:text-indigo-700 dark:hover:text-indigo-300">Install</a>
+      <a href="quickstart.html" class="hover:text-indigo-700 dark:hover:text-indigo-300">Quickstart</a>
+      <a href="mcp.html" class="hover:text-indigo-700 dark:hover:text-indigo-300">MCP setup</a>
+      <a href="plugins.html" class="hover:text-indigo-700 dark:hover:text-indigo-300">Plugins</a>
+      <a href="https://github.com/gloss-mcp/client" class="hover:text-indigo-700 dark:hover:text-indigo-300">GitHub</a>
       </nav>
     </div>
   </header>
   <main class="mx-auto max-w-4xl px-4 py-10">
     <section class="py-8">
       <h1 class="text-4xl font-bold tracking-tight sm:text-5xl">Review AI output on your own time.</h1>
-      <p class="mt-5 max-w-2xl text-lg text-gray-600">
+      <p class="mt-5 max-w-2xl text-lg text-gray-600 dark:text-gray-400">
         AI writes documents, code and data that are easy to review live in a session and
         hard to review anywhere else. Gloss is the missing offline layer: read the files at your
         own pace, comment on specific lines, and hand those threads back to the AI over MCP.
       </p>
       <div class="mt-8 flex flex-wrap gap-3">
         <a href="quickstart.html" class="rounded-lg bg-indigo-700 px-5 py-2.5 font-medium text-white hover:bg-indigo-800">Quickstart</a>
-        <a href="install.html" class="rounded-lg border border-gray-300 px-5 py-2.5 font-medium hover:bg-gray-50">Install</a>
+        <a href="install.html" class="rounded-lg border border-gray-300 dark:border-gray-700 px-5 py-2.5 font-medium hover:bg-gray-50 dark:hover:bg-gray-900">Install</a>
       </div>
-      <pre class="mt-8 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code>$ gloss .
+      <pre class="mt-8 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100 dark:border dark:border-gray-800"><code>$ gloss .
 gloss: indexed 42 files (42 new, 0 reused, 0 skipped) in /home/you/project
 # browser opens at http://localhost:4747</code></pre>
     </section>
 
     <section class="py-4">
-      <img src="img/review.png" width="1280" height="800" alt="Gloss showing a Go file with lines 10 to 12 highlighted and a two-comment thread in the side pane" class="rounded-lg border border-gray-200 shadow-sm">
-      <img src="img/markdown.png" width="1280" height="800" alt="Gloss showing a rendered markdown file with its heading highlighted and a thread beside it" class="mt-6 rounded-lg border border-gray-200 shadow-sm">
+      <img src="img/review.png" width="1280" height="800" alt="Gloss showing a Go file with lines 10 to 12 highlighted and a two-comment thread in the side pane" class="rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
+      <img src="img/markdown.png" width="1280" height="800" alt="Gloss showing a rendered markdown file with its heading highlighted and a thread beside it" class="mt-6 rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
     </section>
 
     <section class="grid gap-6 py-8 sm:grid-cols-3">
       <div>
         <h2 class="font-semibold">One binary</h2>
-        <p class="mt-2 text-gray-600">Run <code class="rounded bg-gray-100 px-1">gloss .</code> in any directory. A localhost web UI and MCP server, backed by SQLite. No account, no auth, no network.</p>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">Run <code class="rounded bg-gray-100 px-1 dark:bg-gray-800">gloss .</code> in any directory. A localhost web UI and MCP server, backed by SQLite. No account, no auth, no network.</p>
       </div>
       <div>
         <h2 class="font-semibold">Threads that follow edits</h2>
-        <p class="mt-2 text-gray-600">When the AI rewrites a file, threads re-anchor by fuzzy-matching context. If they can't, they orphan visibly. They never vanish.</p>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">When the AI rewrites a file, threads re-anchor by fuzzy-matching context. If they can't, they orphan visibly. They never vanish.</p>
       </div>
       <div>
         <h2 class="font-semibold">Closes the loop</h2>
-        <p class="mt-2 text-gray-600">Claude Code reads your threads, replies in them, and can start threads of its own, all through the MCP endpoint on the same port.</p>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">Claude Code reads your threads, replies in them, and can start threads of its own, all through the MCP endpoint on the same port.</p>
       </div>
     </section>
 
     <section class="py-8">
       <h2 class="text-2xl font-semibold">The loop</h2>
-      <ol class="mt-4 list-decimal space-y-2 pl-6 text-gray-700">
+      <ol class="mt-4 list-decimal space-y-2 pl-6 text-gray-700 dark:text-gray-300">
         <li>The AI generates files in your repo.</li>
         <li>You open Gloss later, read them, and comment on the lines that matter.</li>
         <li>The AI reads the open threads over MCP and responds in context.</li>
         <li>You continue the thread or resolve it. Resolved threads become context for the next pass.</li>
       </ol>
-      <p class="mt-6 text-gray-600">Formats today: code, markdown, JSON, CSV and plain text. See the <a class="text-indigo-700 underline" href="plugins.html">plugin reference</a>.</p>
+      <p class="mt-6 text-gray-600 dark:text-gray-400">Formats today: code, markdown, JSON, CSV and plain text. See the <a class="text-indigo-700 dark:text-indigo-300 underline" href="plugins.html">plugin reference</a>.</p>
     </section>
 
   </main>
-  <footer class="border-t border-gray-200">
-    <div class="mx-auto max-w-4xl px-4 py-6 text-sm text-gray-500">
+  <footer class="border-t border-gray-200 dark:border-gray-800">
+    <div class="mx-auto max-w-4xl px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
       Gloss is open source under the <a class="underline" href="https://github.com/gloss-mcp/client/blob/master/LICENSE">MIT license</a>.
     </div>
   </footer>
