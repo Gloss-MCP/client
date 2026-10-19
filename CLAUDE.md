@@ -135,7 +135,7 @@ Project-specific overrides and additions:
   until the watcher's result appears. In cloud sandboxes set
   `PW_EXECUTABLE_PATH` to the pre-installed Chromium (see the config).
 - **The docs site lives in `site/`.** Hand-written HTML pages (no
-  templating; the only JS is `js/theme.js`), styled by `site/css/input.css` through the same
+  templating; the only JS is `js/theme.js` and `js/menu.js`, the mobile nav), styled by `site/css/input.css` through the same
   standalone Tailwind CLI. `make site` compiles `site/css/site.css`,
   which is gitignored (unlike `app.css`) and built by
   `.github/workflows/pages.yml`, which deploys to GitHub Pages on pushes
