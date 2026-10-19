@@ -75,17 +75,23 @@ Project-specific overrides and additions:
   `clientInfo.name` from the MCP initialize handshake. `.mcp.json` at the
   repo root registers `http://localhost:4747/mcp` so Claude Code in this
   repo can read and reply through the UI live (dogfooding from milestone 6).
-- **Dark mode follows `prefers-color-scheme`; there is no toggle.** In the
-  app, the `@media (prefers-color-scheme: dark)` block at the end of
-  `internal/server/static/css/input.css` redefines Tailwind's palette
-  variables (gray scale inverted, white and the few accent colours
+- **Theme is light / dark / system (default), stored in `localStorage`
+  under `gloss-theme`.** `theme.js` (loaded synchronously in `<head>` to
+  avoid a flash; identical copies in `internal/server/static/js/` and
+  `site/js/`) resolves the choice — `system` via `prefers-color-scheme`,
+  live — into `<html data-theme="light|dark">`, and the CSS hangs off that
+  attribute, never a media query. Picker buttons carry
+  `data-theme-choice`. In the app, the `:root[data-theme="dark"]` block at
+  the end of `internal/server/static/css/input.css` redefines Tailwind's
+  palette variables (gray scale inverted, white and the few accent colours
   re-tinted), so templates, plugin-generated HTML and classes toggled in
   `gloss.js` need no `dark:` variants — use gray/white utilities and the
   accents already remapped there. Hand-written `.gloss-*` CSS and the chroma
   theme (`github-dark`) get explicit overrides in the same block; a new
-  `.gloss-*` rule with a hard-coded colour needs one too. The site (`site/`)
-  is the opposite: explicit `dark:` variants, because its code blocks stay
-  dark in both modes. Pages carry `<meta name="color-scheme">`.
+  `.gloss-*` rule with a hard-coded colour needs one too. The site is the
+  opposite: explicit `dark:` variants (`@custom-variant` on `data-theme`),
+  because its code blocks stay dark in both modes. Covered by
+  `e2e/tests/theme.spec.js`.
 - **Format plugins live in `internal/plugins/`** (code via chroma,
   markdown via goldmark, json, csv; plaintext is the catch-all).
   `NewDefaultRegistry()` order is precedence — specific formats before
@@ -129,7 +135,7 @@ Project-specific overrides and additions:
   until the watcher's result appears. In cloud sandboxes set
   `PW_EXECUTABLE_PATH` to the pre-installed Chromium (see the config).
 - **The docs site lives in `site/`.** Hand-written HTML pages (no
-  templating, no JS), styled by `site/css/input.css` through the same
+  templating; the only JS is `js/theme.js`), styled by `site/css/input.css` through the same
   standalone Tailwind CLI. `make site` compiles `site/css/site.css`,
   which is gitignored (unlike `app.css`) and built by
   `.github/workflows/pages.yml`, which deploys to GitHub Pages on pushes
