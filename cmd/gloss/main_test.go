@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -365,4 +367,76 @@ func TestRunPrintsHarnessInstructions(t *testing.T) {
 	if strings.Contains(stdout.String(), "codex") {
 		t.Errorf("instructions leaked to stdout: %q", stdout.String())
 	}
+}
+
+// runUntilServing boots gloss with args, waits until it is serving, shuts
+// it down and returns everything written to stderr. Shutting down first
+// means the output is complete: boot-time hints are written synchronously
+// right after the "serving" line, so nothing can arrive late.
+func runUntilServing(t *testing.T, args []string) string {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	stderr := &syncBuffer{}
+	var stdout bytes.Buffer
+	doneCh := make(chan int, 1)
+	go func() { doneCh <- run(ctx, args, &stdout, stderr) }()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for servingURLRe.FindStringSubmatch(stderr.String()) == nil && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	cancel()
+	<-doneCh
+	if servingURLRe.FindStringSubmatch(stderr.String()) == nil {
+		t.Fatalf("server never became ready; stderr: %q", stderr.String())
+	}
+	return stderr.String()
+}
+
+// TestRunHarnessHintSilent covers the cases where no hint may print:
+// nothing installed, and an installed harness that already points at this
+// endpoint.
+func TestRunHarnessHintSilent(t *testing.T) {
+	const hint = "detected agent harnesses"
+
+	t.Run("no harness installed", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		t.Setenv("USERPROFILE", home)
+		t.Setenv("PATH", t.TempDir())
+
+		out := runUntilServing(t, []string{"-port", "0", "-no-open", t.TempDir()})
+		if strings.Contains(out, hint) {
+			t.Errorf("unexpected harness hint: %q", out)
+		}
+	})
+
+	t.Run("harness already configured", func(t *testing.T) {
+		home := t.TempDir()
+		t.Setenv("HOME", home)
+		t.Setenv("USERPROFILE", home)
+		t.Setenv("PATH", t.TempDir())
+
+		// Needs a known port to write into the harness's config.
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		port := ln.Addr().(*net.TCPAddr).Port
+		_ = ln.Close()
+
+		codexDir := filepath.Join(home, ".codex")
+		if err := os.MkdirAll(codexDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		cfg := fmt.Sprintf("[mcp_servers.gloss]\nurl = \"http://localhost:%d/mcp\"\n", port)
+		if err := os.WriteFile(filepath.Join(codexDir, "config.toml"), []byte(cfg), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		out := runUntilServing(t, []string{"-port", fmt.Sprint(port), "-no-open", t.TempDir()})
+		if strings.Contains(out, hint) || strings.Contains(out, "codex mcp add") {
+			t.Errorf("hint printed for an already-configured harness: %q", out)
+		}
+	})
 }
