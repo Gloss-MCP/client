@@ -150,11 +150,7 @@ func TestPrint(t *testing.T) {
 		t.Fatalf("empty list printed %q", buf.String())
 	}
 
-	var hs []Harness
-	for _, h := range All() {
-		hs = append(hs, h)
-	}
-	Print(&buf, hs, testURL)
+	Print(&buf, All(), testURL)
 	out := buf.String()
 	for _, want := range []string{
 		"claude mcp add --transport http --scope user gloss " + testURL,
