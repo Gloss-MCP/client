@@ -17,6 +17,7 @@ import (
 
 	"github.com/gloss-mcp/client/internal/connector"
 	"github.com/gloss-mcp/client/internal/delta"
+	"github.com/gloss-mcp/client/internal/harness"
 	"github.com/gloss-mcp/client/internal/plugins"
 	"github.com/gloss-mcp/client/internal/server"
 	"github.com/gloss-mcp/client/internal/store"
@@ -127,6 +128,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 				fmt.Fprintf(stderr, "gloss: could not open browser: %v\n", err)
 			}
 		}
+		// Tell the user how to connect any installed agent harness that
+		// isn't wired to this endpoint yet. Silent once they all are.
+		mcpURL := harness.URL(addr)
+		harness.Print(stderr, harness.Pending(harness.SystemEnv(abs), mcpURL), mcpURL)
 	}
 
 	if err := srv.ListenAndServe(ctx, onReady); err != nil {
