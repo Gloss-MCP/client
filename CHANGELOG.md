@@ -13,6 +13,10 @@ for people reading the commit log.
 - Dark mode for the web UI and the docs site, with a Light / Dark / System
   picker. System (the default) follows your OS or browser colour scheme; your
   choice is remembered in the browser.
+- On startup, Gloss detects installed agent harnesses (Claude Code, OpenAI
+  Codex, Pi, Hermes Agent, OpenCode, Kimi Code, Grok Build) and prints how to
+  connect each one to the MCP server. Harnesses already configured for the
+  endpoint are skipped, so the hint disappears once you've connected.
 
 ## [0.1.0] - 2026-10-18
 

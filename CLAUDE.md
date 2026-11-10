@@ -75,6 +75,17 @@ Project-specific overrides and additions:
   `clientInfo.name` from the MCP initialize handshake. `.mcp.json` at the
   repo root registers `http://localhost:4747/mcp` so Claude Code in this
   repo can read and reply through the UI live (dogfooding from milestone 6).
+- **Harness detection lives in `internal/harness/`.** At boot (after the
+  listener is bound, so the port is real) `main.go` prints, to **stderr**,
+  connect instructions for each installed agent harness (Claude Code,
+  Codex, Pi, Hermes, OpenCode, Kimi, Grok Build) not already configured.
+  Detection = binary on `PATH` and/or config dir in `$HOME` (Pi requires
+  both; `pi` is too generic alone). "Configured" = the endpoint's
+  `localhost:<port>/mcp` (or `127.0.0.1`) appears in the harness's known
+  config files — a substring check, no format parsing. The table in
+  `harness.go` is data; the Pi/Hermes/Kimi/OpenCode/Grok entries come from
+  docs and third-party guides, not hands-on use, so fix them if a harness
+  changes. Instructions are printed, never written into other tools' config.
 - **Theme is light / dark / system (default), stored in `localStorage`
   under `gloss-theme`.** `theme.js` (loaded synchronously in `<head>` to
   avoid a flash; identical copies in `internal/server/static/js/` and
