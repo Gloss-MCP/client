@@ -330,3 +330,39 @@ func runGitCmd(t *testing.T, dir string, args ...string) string {
 	}
 	return string(out)
 }
+
+// TestRunPrintsHarnessInstructions covers boot-time harness detection end
+// to end: an installed-but-unconfigured harness gets connect instructions
+// on stderr (never stdout), using the real bound port.
+func TestRunPrintsHarnessInstructions(t *testing.T) {
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(home, ".codex"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("PATH", t.TempDir()) // no harness binaries; the config dir alone detects codex
+
+	ctx, cancel := context.WithCancel(context.Background())
+	stderr := &syncBuffer{}
+	var stdout bytes.Buffer
+	doneCh := make(chan int, 1)
+	go func() {
+		doneCh <- run(ctx, []string{"-port", "0", "-no-open", t.TempDir()}, &stdout, stderr)
+	}()
+
+	want := regexp.MustCompile(`codex mcp add gloss --url http://localhost:\d+/mcp`)
+	deadline := time.Now().Add(5 * time.Second)
+	for !want.MatchString(stderr.String()) && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	cancel()
+	<-doneCh
+
+	if !want.MatchString(stderr.String()) {
+		t.Errorf("stderr missing codex instructions: %q", stderr.String())
+	}
+	if strings.Contains(stdout.String(), "codex") {
+		t.Errorf("instructions leaked to stdout: %q", stdout.String())
+	}
+}
